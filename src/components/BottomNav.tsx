@@ -1,0 +1,59 @@
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Home, Search, MessageSquare, ShoppingBag, User, Wallet } from 'lucide-react';
+import { useApp } from '@/context/AppContext';
+import { cn } from '@/utils/cn';
+
+const customerTabs = [
+  { path: '/', icon: Home, label: 'Home' },
+  { path: '/explore', icon: Search, label: 'Explore' },
+  { path: '/orders', icon: ShoppingBag, label: 'Orders' },
+  { path: '/chat', icon: MessageSquare, label: 'Chat' },
+  { path: '/profile', icon: User, label: 'Profile' },
+];
+
+const artistTabs = [
+  { path: '/', icon: Home, label: 'Home' },
+  { path: '/orders', icon: ShoppingBag, label: 'Orders' },
+  { path: '/chat', icon: MessageSquare, label: 'Chat' },
+  { path: '/earnings', icon: Wallet, label: 'Earnings' },
+  { path: '/profile', icon: User, label: 'Profile' },
+];
+
+export function BottomNav() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { userRole } = useApp();
+
+  const tabs = userRole === 'artist' ? artistTabs : customerTabs;
+
+  // Hide on sub-pages
+  const hiddenPrefixes = ['/chat/', '/artist/', '/request/', '/order/'];
+  if (hiddenPrefixes.some(p => location.pathname.startsWith(p))) return null;
+
+  return (
+    <nav className="bg-white border-t border-stone-200 shrink-0 safe-bottom">
+      <div className="flex items-center justify-around px-2 pt-2 pb-2">
+        {tabs.map((tab) => {
+          const isActive = location.pathname === tab.path;
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.path}
+              onClick={() => navigate(tab.path)}
+              className={cn(
+                'flex flex-col items-center justify-center py-1.5 px-4 rounded-2xl transition-all min-w-[56px] relative',
+                isActive ? 'text-amber-700 bg-amber-50' : 'text-stone-400'
+              )}
+            >
+              <Icon size={22} strokeWidth={isActive ? 2.5 : 1.8} />
+              <span className={cn(
+                'text-[10px] mt-0.5 leading-tight',
+                isActive ? 'font-bold' : 'font-medium'
+              )}>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}

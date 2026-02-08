@@ -105,7 +105,7 @@ export function App() {
   if (showSplash) return <SplashScreen />;
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.DEV ? '/' : '/hunarhub'}>
       <AppProvider>
         <AppRoutes />
       </AppProvider>

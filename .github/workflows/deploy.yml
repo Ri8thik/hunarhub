@@ -38,6 +38,9 @@ jobs:
       - name: Build project
         run: npm run build
 
+      - name: Copy index.html to 404.html for SPA routing
+        run: cp dist/index.html dist/404.html
+
       - name: Upload build files
         uses: actions/upload-pages-artifact@v3
         with:

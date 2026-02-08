@@ -29,7 +29,7 @@ export function OrderDetailPage() {
 
   const order = orders.find(o => o.id === id);
   if (!order) {
-    return <div className="h-full flex items-center justify-center bg-stone-50"><p className="text-stone-500">Order not found</p></div>;
+    return <div className="flex items-center justify-center h-64"><p className="text-stone-500">Order not found</p></div>;
   }
 
   const currentStep = statusOrder.indexOf(order.status);
@@ -38,10 +38,10 @@ export function OrderDetailPage() {
     if (userRole === 'artist') {
       if (order.status === 'requested') return { label: 'Accept Request', action: () => updateOrderStatus(order.id, 'accepted') };
       if (order.status === 'accepted') return { label: 'Start Working', action: () => updateOrderStatus(order.id, 'in_progress') };
-      if (order.status === 'in_progress') return { label: 'Mark Delivered', action: () => updateOrderStatus(order.id, 'delivered') };
+      if (order.status === 'in_progress') return { label: 'Mark as Delivered', action: () => updateOrderStatus(order.id, 'delivered') };
     }
     if (userRole === 'customer') {
-      if (order.status === 'delivered') return { label: 'Mark Complete', action: () => { updateOrderStatus(order.id, 'completed'); setShowReview(true); } };
+      if (order.status === 'delivered') return { label: 'Confirm & Complete', action: () => { updateOrderStatus(order.id, 'completed'); setShowReview(true); } };
     }
     return null;
   };
@@ -49,143 +49,156 @@ export function OrderDetailPage() {
   const nextAction = getNextAction();
 
   return (
-    <div className="h-full flex flex-col bg-stone-50">
-      <div className="bg-white px-5 pt-3 pb-3 shadow-sm shrink-0">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-stone-100 flex items-center justify-center">
-            <ArrowLeft size={18} className="text-stone-600" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-base font-bold text-stone-800 truncate">{order.title}</h1>
-            <p className="text-[10px] text-stone-400">#{order.id}</p>
-          </div>
-          <StatusBadge status={order.status} />
+    <div className="p-4 lg:p-8 max-w-5xl mx-auto animate-fade-in">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-stone-500 hover:text-stone-700 transition-colors">
+          <ArrowLeft size={18} />
+          <span className="text-sm font-medium">Back</span>
+        </button>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl font-bold text-stone-800 truncate">{order.title}</h1>
+          <p className="text-xs text-stone-400">Order #{order.id}</p>
         </div>
+        <StatusBadge status={order.status} />
       </div>
 
-      <div className="flex-1 native-scroll px-5 py-3 space-y-3">
-        {order.status !== 'rejected' && (
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
-            <h3 className="font-semibold text-stone-800 text-xs mb-3">Order Progress</h3>
-            {statusSteps.map((step, i) => {
-              const isCompleted = i <= currentStep;
-              const isCurrent = i === currentStep;
-              const Icon = step.icon;
-              return (
-                <div key={step.status} className="flex items-start gap-2.5 mb-4 last:mb-0">
-                  <div className="relative flex flex-col items-center">
-                    <div className={cn('w-7 h-7 rounded-full flex items-center justify-center z-10', isCompleted ? 'bg-amber-600 text-white' : 'bg-stone-200 text-stone-400')}>
-                      <Icon size={14} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Progress Tracker */}
+          {order.status !== 'rejected' && (
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-stone-100">
+              <h3 className="font-semibold text-stone-800 mb-4">Order Progress</h3>
+              <div className="flex items-center justify-between relative">
+                <div className="absolute top-4 left-0 right-0 h-0.5 bg-stone-200" />
+                <div className="absolute top-4 left-0 h-0.5 bg-amber-600 transition-all" style={{ width: `${(currentStep / (statusSteps.length - 1)) * 100}%` }} />
+                {statusSteps.map((step, i) => {
+                  const isCompleted = i <= currentStep;
+                  const isCurrent = i === currentStep;
+                  const Icon = step.icon;
+                  return (
+                    <div key={step.status} className="relative flex flex-col items-center z-10">
+                      <div className={cn(
+                        'w-8 h-8 rounded-full flex items-center justify-center transition-all',
+                        isCompleted ? 'bg-amber-600 text-white shadow-md' : 'bg-stone-200 text-stone-400'
+                      )}>
+                        <Icon size={14} />
+                      </div>
+                      <span className={cn(
+                        'text-[10px] mt-2 font-medium text-center whitespace-nowrap',
+                        isCurrent ? 'text-amber-700' : isCompleted ? 'text-stone-700' : 'text-stone-400'
+                      )}>{step.label}</span>
                     </div>
-                    {i < statusSteps.length - 1 && (
-                      <div className={cn('absolute top-7 w-0.5 h-4', i < currentStep ? 'bg-amber-600' : 'bg-stone-200')} />
-                    )}
-                  </div>
-                  <div className="pt-0.5">
-                    <p className={cn('text-xs font-medium', isCurrent ? 'text-amber-700' : isCompleted ? 'text-stone-700' : 'text-stone-400')}>
-                      {step.label}
-                    </p>
-                    {isCurrent && <p className="text-[10px] text-stone-400">Current</p>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {order.status === 'rejected' && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-center">
-            <XCircle size={32} className="text-red-400 mx-auto" />
-            <p className="text-sm font-semibold text-red-700 mt-2">Order Rejected</p>
-          </div>
-        )}
-
-        <div className="bg-white rounded-2xl p-3.5 shadow-sm flex items-center gap-3">
-          <Avatar name={userRole === 'customer' ? order.artistName : order.customerName} size="md" />
-          <div className="flex-1">
-            <p className="text-[10px] text-stone-400">{userRole === 'customer' ? 'Artist' : 'Customer'}</p>
-            <h3 className="font-semibold text-stone-800 text-sm">{userRole === 'customer' ? order.artistName : order.customerName}</h3>
-          </div>
-          <button onClick={() => navigate('/chat')} className="w-9 h-9 bg-amber-100 rounded-full flex items-center justify-center">
-            <MessageSquare size={16} className="text-amber-700" />
-          </button>
-        </div>
-
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <h3 className="font-semibold text-stone-800 text-xs mb-2">Details</h3>
-          <p className="text-xs text-stone-600 leading-relaxed mb-3">{order.description}</p>
-          <div className="space-y-2">
-            {[
-              { icon: IndianRupee, label: 'Budget', value: `₹${order.budget.toLocaleString('en-IN')}`, highlight: true },
-              { icon: Calendar, label: 'Deadline', value: order.deadline },
-              { icon: Clock, label: 'Created', value: order.createdAt },
-            ].map((item, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-stone-500">
-                  <item.icon size={13} />
-                  <span className="text-xs">{item.label}</span>
-                </div>
-                <span className={cn('text-xs font-medium', item.highlight ? 'text-amber-700 font-semibold' : 'text-stone-700')}>{item.value}</span>
+                  );
+                })}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          )}
 
-        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-100">
-          <h3 className="font-semibold text-stone-800 text-xs mb-2">💳 Payment</h3>
-          <div className="space-y-1.5">
-            <div className="flex justify-between"><span className="text-xs text-stone-500">Amount</span><span className="text-xs text-stone-700">₹{order.budget.toLocaleString('en-IN')}</span></div>
-            <div className="flex justify-between"><span className="text-xs text-stone-500">Fee (5%)</span><span className="text-xs text-stone-700">₹{Math.round(order.budget * 0.05).toLocaleString('en-IN')}</span></div>
-            <div className="border-t border-amber-200 pt-1.5">
-              <div className="flex justify-between"><span className="text-xs font-semibold text-stone-800">Total</span><span className="text-xs font-bold text-amber-700">₹{Math.round(order.budget * 1.05).toLocaleString('en-IN')}</span></div>
+          {order.status === 'rejected' && (
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+              <XCircle size={40} className="text-red-400 mx-auto" />
+              <p className="text-lg font-semibold text-red-700 mt-3">Order Rejected</p>
+              <p className="text-sm text-red-500 mt-1">The artist has declined this request</p>
+            </div>
+          )}
+
+          {/* Order Details */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-stone-100">
+            <h3 className="font-semibold text-stone-800 mb-3">Order Details</h3>
+            <p className="text-sm text-stone-600 leading-relaxed mb-4">{order.description}</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {[
+                { icon: IndianRupee, label: 'Budget', value: `₹${order.budget.toLocaleString('en-IN')}`, highlight: true },
+                { icon: Calendar, label: 'Deadline', value: order.deadline, highlight: false },
+                { icon: Clock, label: 'Created', value: order.createdAt, highlight: false },
+              ].map((item) => (
+                <div key={item.label} className="bg-stone-50 rounded-xl p-3">
+                  <div className="flex items-center gap-1.5 text-stone-400 mb-1">
+                    <item.icon size={14} />
+                    <span className="text-xs">{item.label}</span>
+                  </div>
+                  <span className={cn('text-sm font-semibold', item.highlight ? 'text-amber-700' : 'text-stone-700')}>{item.value}</span>
+                </div>
+              ))}
             </div>
           </div>
-          <p className="text-[10px] text-amber-700 mt-2">🔒 Escrow protected</p>
+
+          {/* Review Section */}
+          {showReview && !reviewSubmitted && (
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-stone-100 animate-fade-in-up">
+              <h3 className="font-semibold text-stone-800 mb-3">⭐ Leave a Review</h3>
+              <div className="flex justify-center mb-3">
+                <StarRating rating={reviewRating} size={28} showValue={false} interactive onChange={setReviewRating} />
+              </div>
+              <textarea placeholder="Share your experience..." value={reviewText} onChange={e => setReviewText(e.target.value)} rows={3}
+                className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none" />
+              <button onClick={() => setReviewSubmitted(true)}
+                className="w-full mt-3 py-3 bg-amber-600 text-white rounded-xl font-semibold text-sm hover:shadow-lg transition-all">
+                Submit Review
+              </button>
+            </div>
+          )}
+
+          {reviewSubmitted && (
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
+              <span className="text-3xl">🌟</span>
+              <p className="text-lg font-semibold text-green-700 mt-2">Thank you for your review!</p>
+            </div>
+          )}
         </div>
 
-        {showReview && !reviewSubmitted && (
-          <div className="bg-white rounded-2xl p-4 shadow-sm animate-fade-in-up">
-            <h3 className="font-semibold text-stone-800 text-xs mb-2">⭐ Leave a Review</h3>
-            <div className="flex justify-center mb-2">
-              <StarRating rating={reviewRating} size={24} showValue={false} interactive onChange={setReviewRating} />
+        {/* Sidebar */}
+        <div className="space-y-4">
+          {/* Contact Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100">
+            <p className="text-xs text-stone-400 mb-2">{userRole === 'customer' ? 'Artist' : 'Customer'}</p>
+            <div className="flex items-center gap-3 mb-3">
+              <Avatar name={userRole === 'customer' ? order.artistName : order.customerName} size="lg" />
+              <div>
+                <h3 className="font-semibold text-stone-800">{userRole === 'customer' ? order.artistName : order.customerName}</h3>
+                <p className="text-xs text-stone-400">{order.category}</p>
+              </div>
             </div>
-            <textarea placeholder="Share your experience..." value={reviewText} onChange={e => setReviewText(e.target.value)} rows={3}
-              className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none" />
-            <button onClick={() => setReviewSubmitted(true)}
-              className="w-full mt-2 py-3 bg-amber-600 text-white rounded-xl font-semibold text-sm">
-              Submit Review
+            <button onClick={() => navigate('/chat')}
+              className="w-full py-2.5 border-2 border-amber-600 text-amber-600 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-amber-50 transition-colors">
+              <MessageSquare size={16} /> Send Message
             </button>
           </div>
-        )}
 
-        {reviewSubmitted && (
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
-            <span className="text-2xl">🌟</span>
-            <p className="text-sm font-semibold text-green-700 mt-1">Thank you for your review!</p>
+          {/* Payment Info */}
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-5 border border-amber-100">
+            <h3 className="font-semibold text-stone-800 mb-3">💳 Payment Summary</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between"><span className="text-sm text-stone-500">Amount</span><span className="text-sm text-stone-700">₹{order.budget.toLocaleString('en-IN')}</span></div>
+              <div className="flex justify-between"><span className="text-sm text-stone-500">Platform Fee (5%)</span><span className="text-sm text-stone-700">₹{Math.round(order.budget * 0.05).toLocaleString('en-IN')}</span></div>
+              <div className="border-t border-amber-200 pt-2">
+                <div className="flex justify-between"><span className="text-sm font-bold text-stone-800">Total</span><span className="text-sm font-bold text-amber-700">₹{Math.round(order.budget * 1.05).toLocaleString('en-IN')}</span></div>
+              </div>
+            </div>
+            <p className="text-xs text-amber-700 mt-3">🔒 Escrow protected — Payment held until delivery</p>
           </div>
-        )}
+
+          {/* Actions */}
+          {order.status !== 'rejected' && order.status !== 'completed' && (
+            <div className="space-y-2">
+              {nextAction && (
+                <button onClick={nextAction.action}
+                  className="w-full py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-semibold text-sm shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all">
+                  {nextAction.label}
+                </button>
+              )}
+              {userRole === 'artist' && order.status === 'requested' && (
+                <button onClick={() => updateOrderStatus(order.id, 'rejected')}
+                  className="w-full py-3 border-2 border-red-300 text-red-600 rounded-xl font-semibold text-sm hover:bg-red-50 transition-colors">
+                  Reject Request
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-
-      {order.status !== 'rejected' && order.status !== 'completed' && (
-        <div className="bg-white border-t border-stone-200 p-3 flex gap-2 shrink-0">
-          {userRole === 'artist' && order.status === 'requested' && (
-            <button onClick={() => updateOrderStatus(order.id, 'rejected')}
-              className="px-4 py-2.5 border-2 border-red-300 text-red-600 rounded-xl font-semibold text-sm">
-              Reject
-            </button>
-          )}
-          {nextAction && (
-            <button onClick={nextAction.action}
-              className="flex-1 py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-semibold text-sm shadow-lg shadow-amber-200 active:scale-[0.97] transition-transform">
-              {nextAction.label}
-            </button>
-          )}
-          <button onClick={() => navigate('/chat')}
-            className="w-11 h-11 border-2 border-amber-600 rounded-xl flex items-center justify-center text-amber-600">
-            <MessageSquare size={18} />
-          </button>
-        </div>
-      )}
     </div>
   );
 }

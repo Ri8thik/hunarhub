@@ -1,81 +1,31 @@
 @import "tailwindcss";
 
-/* ===== MOBILE APP CORE STYLES ===== */
+/* ===== BASE STYLES ===== */
 * {
-  -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
   box-sizing: border-box;
 }
 
-html {
+html, body, #root {
   height: 100%;
-  height: -webkit-fill-available;
-  overflow: hidden;
-  background: #f5f5f4;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  height: 100%;
-  height: -webkit-fill-available;
-  margin: 0;
-  padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
-  overflow: hidden;
-  background: #f5f5f4;
+  background: #fafaf9;
+  color: #1c1917;
 }
 
-#root {
-  height: 100%;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* ===== APP SHELL ===== */
-.app-shell {
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  background: #f5f5f4;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-}
-
-/* ===== SCROLLING ===== */
-.native-scroll {
-  -webkit-overflow-scrolling: touch;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-}
-
-.native-scroll::-webkit-scrollbar {
-  display: none;
-}
-.native-scroll {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
+/* ===== SCROLLBAR ===== */
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* ===== USER SELECT ===== */
-.no-select {
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-/* ===== SAFE AREAS ===== */
-.safe-top {
-  padding-top: env(safe-area-inset-top, 0px);
-}
-.safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 3px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
 
 /* ===== LINE CLAMP ===== */
 .line-clamp-2 {
@@ -84,17 +34,11 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
-/* ===== MOBILE INPUT FIX ===== */
-input, textarea, select {
-  font-size: 16px !important;
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-/* ===== BUTTON PRESS ===== */
-button:active {
-  opacity: 0.9;
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ===== ANIMATIONS ===== */
@@ -104,11 +48,23 @@ button:active {
 }
 .animate-fade-in-up { animation: fadeInUp 0.4s ease-out; }
 
-@keyframes slideUp {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
-.animate-slide-up { animation: slideUp 0.3s ease-out; }
+.animate-fade-in { animation: fadeIn 0.3s ease-out; }
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-down { animation: slideDown 0.3s ease-out; }
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-scale-in { animation: scaleIn 0.3s ease-out; }
 
 @keyframes pulse-soft {
   0%, 100% { opacity: 1; }
@@ -123,8 +79,19 @@ button:active {
 }
 .animate-bounce-in { animation: bounceIn 0.5s ease-out; }
 
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+/* ===== TRANSITIONS ===== */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.animate-spin-slow { animation: spin-slow 3s linear infinite; }
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* ===== GRADIENT TEXT ===== */
+.gradient-text {
+  background: linear-gradient(135deg, #b45309, #ea580c);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

@@ -41,123 +41,154 @@ export function ExplorePage() {
   }, [search, selectedCategory, sortBy, budgetRange]);
 
   return (
-    <div className="h-full flex flex-col bg-stone-50">
-      {/* Sticky Header */}
-      <div className="bg-white px-5 pt-3 pb-3 shadow-sm shrink-0 z-40">
-        <h1 className="text-lg font-bold text-stone-800 mb-2">Explore Artists</h1>
-        <div className="flex gap-2">
-          <div className="flex-1 relative">
-            <Search size={15} className="absolute left-3 top-3 text-stone-400" />
-            <input type="text" placeholder="Search artists, skills..." value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full px-4 py-2.5 pl-9 bg-stone-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-3 top-3">
-                <X size={14} className="text-stone-400" />
-              </button>
-            )}
-          </div>
-          <button onClick={() => setShowFilters(!showFilters)}
-            className={cn('w-10 h-10 rounded-xl flex items-center justify-center', showFilters ? 'bg-amber-600 text-white' : 'bg-stone-100 text-stone-600')}>
-            <SlidersHorizontal size={17} />
-          </button>
-        </div>
-        <div className="flex gap-2 overflow-x-auto mt-2 -mx-5 px-5 scrollbar-hide">
-          <button onClick={() => setSelectedCategory('')}
-            className={cn('px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap shrink-0', !selectedCategory ? 'bg-amber-600 text-white' : 'bg-stone-100 text-stone-600')}>
-            All
-          </button>
-          {categories.map(cat => (
-            <button key={cat.id} onClick={() => setSelectedCategory(selectedCategory === cat.name ? '' : cat.name)}
-              className={cn('px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap shrink-0', selectedCategory === cat.name ? 'bg-amber-600 text-white' : 'bg-stone-100 text-stone-600')}>
-              {cat.icon} {cat.name}
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto animate-fade-in">
+      {/* Search & Filters Header */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="flex-1 relative">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+          <input
+            type="text"
+            placeholder="Search artists, skills, location..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-10 pr-10 py-3 bg-white border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2">
+              <X size={16} className="text-stone-400" />
             </button>
-          ))}
+          )}
         </div>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className={cn(
+            'flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all',
+            showFilters ? 'bg-amber-600 text-white' : 'bg-white text-stone-600 border border-stone-200 hover:border-amber-300'
+          )}
+        >
+          <SlidersHorizontal size={16} />
+          Filters
+        </button>
       </div>
 
+      {/* Category Pills */}
+      <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide mb-2">
+        <button
+          onClick={() => setSelectedCategory('')}
+          className={cn(
+            'px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-all',
+            !selectedCategory ? 'bg-amber-600 text-white shadow-md' : 'bg-white text-stone-600 border border-stone-200 hover:border-amber-300'
+          )}
+        >All Artists</button>
+        {categories.map(cat => (
+          <button
+            key={cat.id}
+            onClick={() => setSelectedCategory(selectedCategory === cat.name ? '' : cat.name)}
+            className={cn(
+              'px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-all',
+              selectedCategory === cat.name ? 'bg-amber-600 text-white shadow-md' : 'bg-white text-stone-600 border border-stone-200 hover:border-amber-300'
+            )}
+          >{cat.icon} {cat.name}</button>
+        ))}
+      </div>
+
+      {/* Expanded Filters */}
       {showFilters && (
-        <div className="bg-white border-b border-stone-100 px-5 py-3 space-y-3 animate-slide-up shrink-0">
-          <div>
-            <label className="text-[11px] font-semibold text-stone-600 mb-1.5 block">Sort By</label>
-            <div className="flex gap-1.5 flex-wrap">
-              {[
-                { key: 'rating', label: '⭐ Rating' },
-                { key: 'price_low', label: '💰 Low Price' },
-                { key: 'price_high', label: '💎 High Price' },
-                { key: 'reviews', label: '📝 Reviews' },
-              ].map(opt => (
-                <button key={opt.key} onClick={() => setSortBy(opt.key as typeof sortBy)}
-                  className={cn('px-2.5 py-1.5 rounded-lg text-[11px] font-medium', sortBy === opt.key ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-300' : 'bg-stone-100 text-stone-600')}>
-                  {opt.label}
-                </button>
-              ))}
+        <div className="bg-white border border-stone-200 rounded-2xl p-5 mb-4 animate-slide-down shadow-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold text-stone-600 mb-2 block">Sort By</label>
+              <div className="flex gap-2 flex-wrap">
+                {[
+                  { key: 'rating', label: '⭐ Rating' },
+                  { key: 'price_low', label: '💰 Low Price' },
+                  { key: 'price_high', label: '💎 High Price' },
+                  { key: 'reviews', label: '📝 Most Reviews' },
+                ].map(opt => (
+                  <button
+                    key={opt.key}
+                    onClick={() => setSortBy(opt.key as typeof sortBy)}
+                    className={cn(
+                      'px-3 py-2 rounded-lg text-xs font-medium transition-all',
+                      sortBy === opt.key ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-300' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                    )}
+                  >{opt.label}</button>
+                ))}
+              </div>
             </div>
-          </div>
-          <div>
-            <label className="text-[11px] font-semibold text-stone-600 mb-1 block">
-              Budget: ₹{budgetRange[0].toLocaleString('en-IN')} - ₹{budgetRange[1].toLocaleString('en-IN')}
-            </label>
-            <input type="range" min={0} max={50000} step={500} value={budgetRange[1]}
-              onChange={e => setBudgetRange([0, Number(e.target.value)])}
-              className="w-full accent-amber-600 h-1.5" />
+            <div>
+              <label className="text-xs font-semibold text-stone-600 mb-2 block">
+                Budget Range: ₹0 - ₹{budgetRange[1].toLocaleString('en-IN')}
+              </label>
+              <input
+                type="range" min={0} max={50000} step={500} value={budgetRange[1]}
+                onChange={e => setBudgetRange([0, Number(e.target.value)])}
+                className="w-full accent-amber-600"
+              />
+            </div>
           </div>
         </div>
       )}
 
-      {/* Scrollable Results */}
-      <div className="flex-1 native-scroll px-5 pt-3 pb-4">
-        <p className="text-[11px] text-stone-400 mb-2">{filtered.length} artists found</p>
-        <div className="space-y-2.5">
-          {filtered.map(artist => (
-            <button key={artist.id} onClick={() => navigate(`/artist/${artist.id}`)}
-              className="w-full bg-white rounded-2xl p-3.5 shadow-sm active:scale-[0.98] transition-transform text-left">
-              <div className="flex items-start gap-3">
-                <Avatar name={artist.name} size="lg" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1">
-                    <h3 className="font-semibold text-stone-800 text-sm truncate">{artist.name}</h3>
-                    {artist.verified && <BadgeCheck size={13} className="text-amber-600 fill-amber-100 shrink-0" />}
-                    <span className={cn(
-                      'ml-auto px-2 py-0.5 rounded-full text-[9px] font-medium shrink-0',
-                      artist.availability === 'available' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                    )}>
-                      {artist.availability === 'available' ? '🟢' : '🟡'}
-                    </span>
+      {/* Results Count */}
+      <p className="text-sm text-stone-400 mb-4">{filtered.length} artists found</p>
+
+      {/* Results Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {filtered.map(artist => (
+          <button
+            key={artist.id}
+            onClick={() => navigate(`/artist/${artist.id}`)}
+            className="bg-white rounded-2xl p-5 shadow-sm hover-lift border border-stone-100 text-left"
+          >
+            <div className="flex items-start gap-4">
+              <Avatar name={artist.name} size="lg" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <h3 className="font-semibold text-stone-800 truncate">{artist.name}</h3>
+                  {artist.verified && <BadgeCheck size={15} className="text-amber-600 fill-amber-100 shrink-0" />}
+                  <span className={cn(
+                    'ml-auto px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0',
+                    artist.availability === 'available' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                  )}>
+                    {artist.availability === 'available' ? '🟢 Available' : '🟡 Busy'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 mt-1">
+                  <MapPin size={12} className="text-stone-400" />
+                  <span className="text-xs text-stone-400">{artist.location}</span>
+                </div>
+                <p className="text-xs text-stone-500 mt-1.5 line-clamp-2">{artist.bio}</p>
+                <div className="flex items-center gap-3 mt-2">
+                  <div className="flex items-center gap-0.5">
+                    <Star size={13} className="text-amber-500 fill-amber-500" />
+                    <span className="text-sm font-semibold text-stone-700">{artist.rating}</span>
+                    <span className="text-[11px] text-stone-400">({artist.reviewCount})</span>
                   </div>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <MapPin size={10} className="text-stone-400" />
-                    <span className="text-[10px] text-stone-400">{artist.location}</span>
+                  <div className="flex items-center gap-0.5">
+                    <Clock size={12} className="text-stone-400" />
+                    <span className="text-xs text-stone-400">{artist.responseTime}</span>
                   </div>
-                  <div className="flex items-center gap-2.5 mt-1.5">
-                    <div className="flex items-center gap-0.5">
-                      <Star size={11} className="text-amber-500 fill-amber-500" />
-                      <span className="text-[11px] font-semibold text-stone-700">{artist.rating}</span>
-                      <span className="text-[9px] text-stone-400">({artist.reviewCount})</span>
-                    </div>
-                    <div className="flex items-center gap-0.5">
-                      <Clock size={10} className="text-stone-400" />
-                      <span className="text-[10px] text-stone-400">{artist.responseTime}</span>
-                    </div>
-                    <span className="text-[10px] font-medium text-amber-700">₹{artist.priceRange.min}+</span>
-                  </div>
-                  <div className="flex gap-1 mt-1.5 flex-wrap">
-                    {artist.skills.map(skill => (
-                      <span key={skill} className="px-1.5 py-0.5 bg-stone-100 text-stone-600 rounded-full text-[9px] font-medium">{skill}</span>
-                    ))}
-                  </div>
+                  <span className="text-xs font-semibold text-amber-700">₹{artist.priceRange.min}+</span>
+                </div>
+                <div className="flex gap-1.5 mt-2 flex-wrap">
+                  {artist.skills.map(skill => (
+                    <span key={skill} className="px-2 py-0.5 bg-stone-100 text-stone-600 rounded-full text-[10px] font-medium">{skill}</span>
+                  ))}
                 </div>
               </div>
-            </button>
-          ))}
-        </div>
-        {filtered.length === 0 && (
-          <div className="text-center py-12">
-            <span className="text-4xl">🔍</span>
-            <h3 className="text-base font-semibold text-stone-700 mt-3">No artists found</h3>
-            <p className="text-xs text-stone-400 mt-1">Try adjusting your search or filters</p>
-          </div>
-        )}
+            </div>
+          </button>
+        ))}
       </div>
+
+      {filtered.length === 0 && (
+        <div className="text-center py-16">
+          <span className="text-5xl">🔍</span>
+          <h3 className="text-lg font-semibold text-stone-700 mt-4">No artists found</h3>
+          <p className="text-sm text-stone-400 mt-1">Try adjusting your search or filters</p>
+        </div>
+      )}
     </div>
   );
 }

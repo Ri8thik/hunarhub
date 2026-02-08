@@ -4,12 +4,12 @@ import { cn } from '@/utils/cn';
 
 const notifications = [
   { id: '1', type: 'order' as const, title: 'New Order Request', body: 'Amit Kumar wants a Family Portrait Painting', timestamp: '2 min ago', read: false },
-  { id: '2', type: 'message' as const, title: 'New Message', body: 'Priya Sharma sent you a message', timestamp: '15 min ago', read: false },
-  { id: '3', type: 'payment' as const, title: 'Payment Received', body: '₹1,500 received for Pet Dog Sketch', timestamp: '1 hour ago', read: false },
-  { id: '4', type: 'review' as const, title: 'New Review', body: 'Sneha Gupta left a 5-star review', timestamp: '3 hours ago', read: true },
-  { id: '5', type: 'order' as const, title: 'Order Completed', body: 'Mandala painting marked complete', timestamp: 'Yesterday', read: true },
-  { id: '6', type: 'message' as const, title: 'New Message', body: 'Karthik Nair shared an update', timestamp: 'Yesterday', read: true },
-  { id: '7', type: 'payment' as const, title: 'Payout Processed', body: '₹15,000 sent to your bank', timestamp: '2 days ago', read: true },
+  { id: '2', type: 'message' as const, title: 'New Message', body: 'Priya Sharma sent you a message about your sketch order', timestamp: '15 min ago', read: false },
+  { id: '3', type: 'payment' as const, title: 'Payment Received', body: '₹1,500 received for Pet Dog Sketch order', timestamp: '1 hour ago', read: false },
+  { id: '4', type: 'review' as const, title: 'New Review', body: 'Sneha Gupta left a 5-star review on your portrait', timestamp: '3 hours ago', read: true },
+  { id: '5', type: 'order' as const, title: 'Order Completed', body: 'Mandala painting order has been marked complete', timestamp: 'Yesterday', read: true },
+  { id: '6', type: 'message' as const, title: 'New Message', body: 'Karthik Nair shared a progress update on your sculpture', timestamp: 'Yesterday', read: true },
+  { id: '7', type: 'payment' as const, title: 'Payout Processed', body: '₹15,000 has been sent to your bank account', timestamp: '2 days ago', read: true },
 ];
 
 const iconMap = {
@@ -23,33 +23,32 @@ export function NotificationsPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="h-full flex flex-col bg-stone-50">
-      <div className="bg-white px-5 pt-3 pb-3 shadow-sm shrink-0 z-40">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-stone-100 flex items-center justify-center">
-            <ArrowLeft size={18} className="text-stone-600" />
-          </button>
-          <h1 className="text-base font-bold text-stone-800">Notifications</h1>
-          <button className="ml-auto text-[11px] text-amber-600 font-semibold">Mark all read</button>
-        </div>
+    <div className="p-4 lg:p-8 max-w-4xl mx-auto animate-fade-in">
+      <div className="flex items-center gap-3 mb-6">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-stone-500 hover:text-stone-700 transition-colors">
+          <ArrowLeft size={18} />
+          <span className="text-sm font-medium">Back</span>
+        </button>
+        <h1 className="text-xl font-bold text-stone-800 flex-1">Notifications</h1>
+        <button className="text-sm text-amber-600 font-semibold hover:underline">Mark all as read</button>
       </div>
 
-      <div className="flex-1 native-scroll px-5">
+      <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100">
         {notifications.map(notif => {
           const { Icon, bg, color } = iconMap[notif.type];
           return (
             <div key={notif.id}
-              className={cn('flex items-start gap-3 py-3 border-b border-stone-100 last:border-0', !notif.read && 'bg-amber-50/50 -mx-5 px-5 rounded-lg')}>
-              <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', bg)}>
-                <Icon size={16} className={color} />
+              className={cn('flex items-start gap-4 px-5 py-4 hover:bg-stone-50 transition-colors cursor-pointer', !notif.read && 'bg-amber-50/50')}>
+              <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', bg)}>
+                <Icon size={18} className={color} />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h3 className={cn('text-xs', !notif.read ? 'font-bold text-stone-800' : 'font-medium text-stone-700')}>{notif.title}</h3>
-                  {!notif.read && <div className="w-1.5 h-1.5 bg-amber-600 rounded-full shrink-0" />}
+                <div className="flex items-center gap-2">
+                  <h3 className={cn('text-sm', !notif.read ? 'font-bold text-stone-800' : 'font-medium text-stone-700')}>{notif.title}</h3>
+                  {!notif.read && <div className="w-2 h-2 bg-amber-600 rounded-full shrink-0" />}
                 </div>
-                <p className="text-[11px] text-stone-500 mt-0.5">{notif.body}</p>
-                <p className="text-[9px] text-stone-400 mt-0.5">{notif.timestamp}</p>
+                <p className="text-sm text-stone-500 mt-0.5">{notif.body}</p>
+                <p className="text-xs text-stone-400 mt-1">{notif.timestamp}</p>
               </div>
             </div>
           );

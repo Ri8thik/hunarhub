@@ -19,7 +19,7 @@ export function RequestPage() {
   const [submitted, setSubmitted] = useState(false);
 
   if (!artist) {
-    return <div className="h-full flex items-center justify-center"><p className="text-stone-500">Artist not found</p></div>;
+    return <div className="flex items-center justify-center h-64"><p className="text-stone-500">Artist not found</p></div>;
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -36,113 +36,140 @@ export function RequestPage() {
 
   if (submitted) {
     return (
-      <div className="h-full bg-stone-50 flex flex-col items-center justify-center px-6">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4 animate-bounce-in">
-          <span className="text-3xl">🎉</span>
-        </div>
-        <h1 className="text-xl font-bold text-stone-800 text-center">Request Submitted!</h1>
-        <p className="text-stone-500 text-xs text-center mt-1.5 max-w-[260px]">
-          Sent to {artist.name}. They will respond soon!
-        </p>
-        <div className="mt-6 space-y-2.5 w-full max-w-[260px]">
-          <button onClick={() => navigate('/orders')}
-            className="w-full py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-semibold text-sm">
-            View My Orders
-          </button>
-          <button onClick={() => navigate('/')}
-            className="w-full py-3 bg-stone-100 text-stone-700 rounded-xl font-semibold text-sm">
-            Back to Home
-          </button>
+      <div className="flex items-center justify-center min-h-[60vh] p-4">
+        <div className="text-center animate-scale-in">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce-in">
+            <span className="text-4xl">🎉</span>
+          </div>
+          <h1 className="text-2xl font-bold text-stone-800">Request Submitted!</h1>
+          <p className="text-stone-500 mt-2 max-w-sm mx-auto">
+            Your custom art request has been sent to {artist.name}. They will respond soon!
+          </p>
+          <div className="mt-6 flex gap-3 justify-center">
+            <button onClick={() => navigate('/orders')}
+              className="px-6 py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-semibold text-sm hover:shadow-lg transition-all">
+              View My Orders
+            </button>
+            <button onClick={() => navigate('/')}
+              className="px-6 py-3 bg-stone-100 text-stone-700 rounded-xl font-semibold text-sm hover:bg-stone-200 transition-colors">
+              Back to Home
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-stone-50">
-      <div className="bg-white px-5 pt-3 pb-3 shadow-sm shrink-0">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-stone-100 flex items-center justify-center">
-            <ArrowLeft size={18} className="text-stone-600" />
-          </button>
-          <h1 className="text-base font-bold text-stone-800">Request Custom Art</h1>
-        </div>
-      </div>
+    <div className="p-4 lg:p-8 max-w-3xl mx-auto animate-fade-in">
+      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-stone-500 hover:text-stone-700 mb-4 transition-colors">
+        <ArrowLeft size={18} />
+        <span className="text-sm font-medium">Back</span>
+      </button>
 
-      <div className="flex-1 native-scroll px-5 py-3">
-        <div className="bg-white rounded-2xl p-3 shadow-sm flex items-center gap-3 mb-3">
-          <Avatar name={artist.name} size="md" />
-          <div>
-            <h3 className="font-semibold text-stone-800 text-sm">{artist.name}</h3>
-            <p className="text-[10px] text-stone-500">{artist.skills.join(' • ')}</p>
-            <p className="text-[10px] text-amber-600 font-medium">₹{artist.priceRange.min} - ₹{artist.priceRange.max}</p>
+      <h1 className="text-xl lg:text-2xl font-bold text-stone-800 mb-6">Request Custom Art</h1>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Artist Card */}
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100 sticky top-4">
+            <div className="flex items-center gap-3 mb-3">
+              <Avatar name={artist.name} size="lg" />
+              <div>
+                <h3 className="font-semibold text-stone-800">{artist.name}</h3>
+                <p className="text-xs text-stone-500">{artist.location}</p>
+              </div>
+            </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-stone-500">Skills</span>
+                <span className="text-stone-700 font-medium">{artist.skills.join(', ')}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-stone-500">Price range</span>
+                <span className="text-amber-700 font-semibold">₹{artist.priceRange.min} - ₹{artist.priceRange.max}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-stone-500">Rating</span>
+                <span className="text-stone-700 font-medium">⭐ {artist.rating} ({artist.reviewCount})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-stone-500">Response</span>
+                <span className="text-stone-700 font-medium">{artist.responseTime}</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3 pb-4">
-          <div>
-            <label className="text-xs font-semibold text-stone-700 mb-1 block">
-              <FileText size={12} className="inline mr-1" /> Title *
-            </label>
-            <input type="text" placeholder="e.g., Family Portrait" value={title} onChange={e => setTitle(e.target.value)} required
-              className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-          </div>
+        {/* Form */}
+        <div className="lg:col-span-2">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-stone-100 space-y-5">
+              <div>
+                <label className="text-sm font-semibold text-stone-700 mb-2 block flex items-center gap-1">
+                  <FileText size={14} /> Title *
+                </label>
+                <input type="text" placeholder="e.g., Family Portrait, Wedding Invitation..." value={title} onChange={e => setTitle(e.target.value)} required
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-400" />
+              </div>
 
-          <div>
-            <label className="text-xs font-semibold text-stone-700 mb-1 block">Category *</label>
-            <div className="flex gap-1.5 flex-wrap">
-              {categories.slice(0, 6).map(cat => (
-                <button key={cat.id} type="button" onClick={() => setCategory(cat.name)}
-                  className={`px-2.5 py-1.5 rounded-full text-[11px] font-medium ${category === cat.name ? 'bg-amber-600 text-white' : 'bg-white border border-stone-200 text-stone-600'}`}>
-                  {cat.icon} {cat.name}
+              <div>
+                <label className="text-sm font-semibold text-stone-700 mb-2 block">Category *</label>
+                <div className="flex gap-2 flex-wrap">
+                  {categories.slice(0, 8).map(cat => (
+                    <button key={cat.id} type="button" onClick={() => setCategory(cat.name)}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${category === cat.name ? 'bg-amber-600 text-white shadow-md' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}>
+                      {cat.icon} {cat.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-stone-700 mb-2 block">Description *</label>
+                <textarea placeholder="Describe what you want in detail — style, size, colors, special elements..." value={description} onChange={e => setDescription(e.target.value)} required rows={4}
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-400 resize-none" />
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-stone-700 mb-2 block flex items-center gap-1">
+                  <Upload size={14} /> Reference Images (optional)
+                </label>
+                <button type="button" className="w-full py-8 border-2 border-dashed border-stone-300 rounded-xl flex flex-col items-center gap-2 text-stone-400 hover:border-amber-400 hover:text-amber-600 transition-colors">
+                  <Upload size={24} />
+                  <span className="text-sm font-medium">Click to upload reference images</span>
+                  <span className="text-xs">JPG, PNG up to 10MB each</span>
                 </button>
-              ))}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-stone-700 mb-2 block flex items-center gap-1">
+                    <IndianRupee size={14} /> Budget (₹) *
+                  </label>
+                  <input type="number" placeholder="5000" value={budget} onChange={e => setBudget(e.target.value)} required
+                    className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-400" />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-stone-700 mb-2 block flex items-center gap-1">
+                    <Calendar size={14} /> Deadline *
+                  </label>
+                  <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} required
+                    className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-400" />
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label className="text-xs font-semibold text-stone-700 mb-1 block">Description *</label>
-            <textarea placeholder="Describe what you want..." value={description} onChange={e => setDescription(e.target.value)} required rows={3}
-              className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none" />
-          </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+              💡 <strong>Tip:</strong> The more details you provide, the better the artist can understand your vision. Include preferred style, dimensions, color preferences, and any special elements you want.
+            </div>
 
-          <div>
-            <label className="text-xs font-semibold text-stone-700 mb-1 block">
-              <Upload size={12} className="inline mr-1" /> Reference Images
-            </label>
-            <button type="button" className="w-full py-6 border-2 border-dashed border-stone-300 rounded-xl flex flex-col items-center gap-1 text-stone-400">
-              <Upload size={20} />
-              <span className="text-xs font-medium">Tap to upload</span>
-              <span className="text-[10px]">JPG, PNG up to 10MB</span>
+            <button type="submit"
+              className="w-full py-4 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-amber-200/60 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+              🎨 Submit Request
             </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2.5">
-            <div>
-              <label className="text-xs font-semibold text-stone-700 mb-1 block">
-                <IndianRupee size={12} className="inline mr-0.5" /> Budget *
-              </label>
-              <input type="number" placeholder="5000" value={budget} onChange={e => setBudget(e.target.value)} required
-                className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-stone-700 mb-1 block">
-                <Calendar size={12} className="inline mr-0.5" /> Deadline *
-              </label>
-              <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} required
-                className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-            </div>
-          </div>
-
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-800 leading-relaxed">
-            💡 <strong>Tip:</strong> Be detailed — style, size, colors, special elements.
-          </div>
-
-          <button type="submit"
-            className="w-full py-3.5 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-semibold text-sm shadow-lg shadow-amber-200 active:scale-[0.97] transition-transform">
-            Submit Request 🎨
-          </button>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );

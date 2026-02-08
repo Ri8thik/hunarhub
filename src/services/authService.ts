@@ -1,268 +1,332 @@
-// ============================================================
-// 🔐 AUTHENTICATION SERVICE
-// ============================================================
-// Handles:
-// - Email/Password login & registration
-// - Phone OTP login
-// - Google Sign-In
-// - Logout
-// - Password reset
-// - Session initialization
-// ============================================================
-
 import {
-  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
   signInWithPopup,
-  signOut,
-  sendPasswordResetEmail,
-  updateProfile,
-  RecaptchaVerifier,
+  GoogleAuthProvider,
   signInWithPhoneNumber,
+  RecaptchaVerifier,
+  sendPasswordResetEmail,
+  signOut,
   onAuthStateChanged,
-  type User,
+  updateProfile,
   type ConfirmationResult,
+  type User,
+  type Unsubscribe,
 } from 'firebase/auth';
-import { auth, googleProvider, isFirebaseConfigured } from '@/config/firebase';
-import { initSession, clearSession } from '@/services/sessionManager';
-import { createUserProfile, getUserProfile } from '@/services/firestoreService';
-import { type UserRole } from '@/types';
+import { auth, isFirebaseConfigured } from '../config/firebase';
+import { saveTokens, saveUserData, clearSession, getUserRole } from './sessionManager';
 
-// ---- Auth Result Type ----
-export interface AuthResult {
-  success: boolean;
-  user?: User;
-  error?: string;
-  errorCode?: string;
+// Helper to save session data in one call
+function saveSession(
+  userData: {
+    uid: string;
+    email: string | null;
+    displayName: string | null;
+    photoURL: string | null;
+    phoneNumber: string | null;
+    loginMethod: 'email' | 'phone' | 'google';
+  },
+  token: string,
+  expiry: number
+): void {
+  const role = getUserRole() || 'customer';
+  saveTokens(token, token, expiry - Date.now());
+  saveUserData({
+    ...userData,
+    role,
+    loginTimestamp: Date.now(),
+  });
 }
 
-// ---- Store phone verification result ----
-let phoneConfirmationResult: ConfirmationResult | null = null;
+// ============ TYPES ============
 
-// ============================================================
-// EMAIL / PASSWORD AUTH
-// ============================================================
+interface AuthResult {
+  success: boolean;
+  error?: string;
+  user?: User;
+}
 
-/** Register with email and password */
-export async function registerWithEmail(
+// ============ INTERNAL STATE ============
+
+let confirmationResult: ConfirmationResult | null = null;
+let recaptchaVerifier: RecaptchaVerifier | null = null;
+
+// ============ AUTH STATE LISTENER ============
+
+export const onAuthChange = (callback: (user: User | null) => void): Unsubscribe => {
+  if (!isFirebaseConfigured()) {
+    // In demo mode, no auth state changes
+    return () => {};
+  }
+  return onAuthStateChanged(auth, callback);
+};
+
+// ============ RECAPTCHA MANAGEMENT ============
+
+export const initRecaptcha = (containerId: string): void => {
+  if (!isFirebaseConfigured()) return;
+
+  try {
+    cleanupRecaptcha();
+
+    const container = document.getElementById(containerId);
+    if (!container) {
+      console.warn('reCAPTCHA container not found:', containerId);
+      return;
+    }
+
+    container.innerHTML = '';
+
+    recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
+      size: 'normal',
+      callback: () => {
+        console.log('reCAPTCHA solved');
+      },
+      'expired-callback': () => {
+        console.log('reCAPTCHA expired');
+      },
+    });
+
+    recaptchaVerifier.render().then((widgetId) => {
+      console.log('reCAPTCHA rendered, widget:', widgetId);
+    }).catch((err) => {
+      console.error('reCAPTCHA render error:', err);
+    });
+  } catch (error) {
+    console.error('reCAPTCHA init error:', error);
+  }
+};
+
+export const cleanupRecaptcha = (): void => {
+  try {
+    if (recaptchaVerifier) {
+      recaptchaVerifier.clear();
+      recaptchaVerifier = null;
+    }
+    const container = document.getElementById('recaptcha-container');
+    if (container) container.innerHTML = '';
+  } catch (e) {
+    console.warn('reCAPTCHA cleanup:', e);
+    recaptchaVerifier = null;
+  }
+};
+
+// ============ PHONE NUMBER FORMATTING ============
+
+const formatPhoneNumber = (phone: string): string => {
+  let cleaned = phone.replace(/[\s\-\(\)]/g, '');
+
+  if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+
+  if (cleaned.startsWith('91') && cleaned.length === 12) {
+    cleaned = '+' + cleaned;
+  }
+
+  if (!cleaned.startsWith('+')) {
+    cleaned = '+91' + cleaned;
+  }
+
+  return cleaned;
+};
+
+// ============ EMAIL AUTH ============
+
+export const registerWithEmail = async (
   email: string,
   password: string,
-  name: string,
-  role: UserRole
-): Promise<AuthResult> {
-  // If Firebase is not configured, use mock
+  name?: string,
+  _role?: string
+): Promise<AuthResult> => {
   if (!isFirebaseConfigured()) {
-    return mockAuth(email, name, role, 'email');
+    // Demo mode
+    saveSession({
+      uid: 'demo-' + Date.now(),
+      email,
+      displayName: name || 'Demo User',
+      photoURL: null,
+      phoneNumber: null,
+      loginMethod: 'email',
+    }, 'demo-token-' + Date.now(), Date.now() + 3600000);
+    return { success: true };
   }
 
   try {
     const result = await createUserWithEmailAndPassword(auth, email, password);
-    
-    // Update display name
-    await updateProfile(result.user, { displayName: name });
-    
-    // Create user profile in Firestore
-    await createUserProfile(result.user.uid, {
-      name,
-      email,
-      role,
-      phone: '',
-      avatar: '',
-      location: '',
-      joinedDate: new Date().toISOString().split('T')[0],
-    });
-    
-    // Initialize session
-    await initSession(role, 'email');
-    
+
+    if (name) {
+      await updateProfile(result.user, { displayName: name });
+    }
+
+    const token = await result.user.getIdToken();
+    saveSession({
+      uid: result.user.uid,
+      email: result.user.email,
+      displayName: name || result.user.displayName,
+      photoURL: result.user.photoURL,
+      phoneNumber: result.user.phoneNumber,
+      loginMethod: 'email',
+    }, token, Date.now() + 3600000);
+
     return { success: true, user: result.user };
   } catch (error: unknown) {
-    const firebaseError = error as { code?: string; message?: string };
-    return {
-      success: false,
-      error: getAuthErrorMessage(firebaseError.code || ''),
-      errorCode: firebaseError.code,
-    };
+    const err = error as { code?: string };
+    return { success: false, error: getErrorMessage(err.code || 'unknown') };
   }
-}
+};
 
-/** Sign in with email and password */
-export async function loginWithEmail(
+export const loginWithEmail = async (
   email: string,
   password: string,
-  role: UserRole
-): Promise<AuthResult> {
+  _role?: string
+): Promise<AuthResult> => {
   if (!isFirebaseConfigured()) {
-    return mockAuth(email, '', role, 'email');
+    // Demo mode
+    saveSession({
+      uid: 'demo-' + Date.now(),
+      email,
+      displayName: 'Demo User',
+      photoURL: null,
+      phoneNumber: null,
+      loginMethod: 'email',
+    }, 'demo-token-' + Date.now(), Date.now() + 3600000);
+    return { success: true };
   }
 
   try {
     const result = await signInWithEmailAndPassword(auth, email, password);
-    
-    // Check if user profile exists and get role
-    const profile = await getUserProfile(result.user.uid);
-    const userRole = profile?.role || role;
-    
-    // Initialize session
-    await initSession(userRole, 'email');
-    
+    const token = await result.user.getIdToken();
+
+    saveSession({
+      uid: result.user.uid,
+      email: result.user.email,
+      displayName: result.user.displayName,
+      photoURL: result.user.photoURL,
+      phoneNumber: result.user.phoneNumber,
+      loginMethod: 'email',
+    }, token, Date.now() + 3600000);
+
     return { success: true, user: result.user };
   } catch (error: unknown) {
-    const firebaseError = error as { code?: string; message?: string };
-    return {
-      success: false,
-      error: getAuthErrorMessage(firebaseError.code || ''),
-      errorCode: firebaseError.code,
-    };
+    const err = error as { code?: string };
+    return { success: false, error: getErrorMessage(err.code || 'unknown') };
   }
-}
+};
 
-// ============================================================
-// PHONE OTP AUTH
-// ============================================================
+// ============ GOOGLE AUTH ============
 
-/** Send OTP to phone number */
-export async function sendPhoneOTP(
+export const loginWithGoogle = async (_role?: string): Promise<AuthResult> => {
+  if (!isFirebaseConfigured()) {
+    // Demo mode
+    saveSession({
+      uid: 'demo-google-' + Date.now(),
+      email: 'demo@gmail.com',
+      displayName: 'Google User',
+      photoURL: null,
+      phoneNumber: null,
+      loginMethod: 'google',
+    }, 'demo-token-' + Date.now(), Date.now() + 3600000);
+    return { success: true };
+  }
+
+  try {
+    const provider = new GoogleAuthProvider();
+    provider.addScope('email');
+    provider.addScope('profile');
+    const result = await signInWithPopup(auth, provider);
+    const token = await result.user.getIdToken();
+
+    saveSession({
+      uid: result.user.uid,
+      email: result.user.email,
+      displayName: result.user.displayName,
+      photoURL: result.user.photoURL,
+      phoneNumber: result.user.phoneNumber,
+      loginMethod: 'google',
+    }, token, Date.now() + 3600000);
+
+    return { success: true, user: result.user };
+  } catch (error: unknown) {
+    const err = error as { code?: string };
+    return { success: false, error: getErrorMessage(err.code || 'unknown') };
+  }
+};
+
+// ============ PHONE AUTH ============
+
+export const sendPhoneOTP = async (
   phoneNumber: string,
-  recaptchaContainerId: string
-): Promise<AuthResult> {
+  _containerId?: string
+): Promise<AuthResult> => {
   if (!isFirebaseConfigured()) {
-    // Mock OTP send
-    phoneConfirmationResult = null;
+    // Demo mode — fake OTP sent
+    confirmationResult = null;
     return { success: true };
   }
 
   try {
-    // Create RecaptchaVerifier
-    const recaptchaVerifier = new RecaptchaVerifier(auth, recaptchaContainerId, {
-      size: 'invisible',
-    });
-    
-    // Format phone number for India
-    const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber.replace(/\D/g, '')}`;
-    
-    // Send OTP
-    phoneConfirmationResult = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
-    
+    if (!recaptchaVerifier) {
+      return { success: false, error: 'Please solve the reCAPTCHA checkbox first, then click Send OTP.' };
+    }
+
+    const formattedPhone = formatPhoneNumber(phoneNumber);
+    confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
     return { success: true };
   } catch (error: unknown) {
-    const firebaseError = error as { code?: string; message?: string };
-    return {
-      success: false,
-      error: getAuthErrorMessage(firebaseError.code || ''),
-      errorCode: firebaseError.code,
-    };
+    const err = error as { code?: string; message?: string };
+    // Reset reCAPTCHA on error
+    cleanupRecaptcha();
+    return { success: false, error: getPhoneErrorMessage(err.code || 'unknown', err.message) };
   }
-}
+};
 
-/** Verify OTP code */
-export async function verifyPhoneOTP(
+export const verifyPhoneOTP = async (
   otp: string,
-  role: UserRole
-): Promise<AuthResult> {
+  _role?: string
+): Promise<AuthResult> => {
   if (!isFirebaseConfigured()) {
-    // Mock OTP verification
+    // Demo mode — accept 123456
     if (otp === '123456') {
-      return mockAuth('', 'Phone User', role, 'phone');
+      saveSession({
+        uid: 'demo-phone-' + Date.now(),
+        email: null,
+        displayName: 'Phone User',
+        photoURL: null,
+        phoneNumber: '+91 98765 43210',
+        loginMethod: 'phone',
+      }, 'demo-token-' + Date.now(), Date.now() + 3600000);
+      return { success: true };
     }
-    return { success: false, error: 'Invalid OTP. Use 123456 for testing.' };
+    return { success: false, error: 'Invalid OTP. In demo mode, use 123456.' };
   }
 
   try {
-    if (!phoneConfirmationResult) {
-      return { success: false, error: 'Please request OTP first' };
+    if (!confirmationResult) {
+      return { success: false, error: 'No OTP was sent. Please request OTP again.' };
     }
-    
-    const result = await phoneConfirmationResult.confirm(otp);
-    
-    // Check/create user profile
-    const profile = await getUserProfile(result.user.uid);
-    if (!profile) {
-      await createUserProfile(result.user.uid, {
-        name: result.user.displayName || 'User',
-        email: result.user.email || '',
-        role,
-        phone: result.user.phoneNumber || '',
-        avatar: '',
-        location: '',
-        joinedDate: new Date().toISOString().split('T')[0],
-      });
-    }
-    
-    // Initialize session
-    await initSession(profile?.role || role, 'phone');
-    
+
+    const result = await confirmationResult.confirm(otp);
+    const token = await result.user.getIdToken();
+
+    saveSession({
+      uid: result.user.uid,
+      email: result.user.email,
+      displayName: result.user.displayName,
+      photoURL: result.user.photoURL,
+      phoneNumber: result.user.phoneNumber,
+      loginMethod: 'phone',
+    }, token, Date.now() + 3600000);
+
+    confirmationResult = null;
     return { success: true, user: result.user };
   } catch (error: unknown) {
-    const firebaseError = error as { code?: string; message?: string };
-    return {
-      success: false,
-      error: getAuthErrorMessage(firebaseError.code || ''),
-      errorCode: firebaseError.code,
-    };
+    const err = error as { code?: string };
+    return { success: false, error: getErrorMessage(err.code || 'unknown') };
   }
-}
+};
 
-// ============================================================
-// GOOGLE SIGN-IN
-// ============================================================
+// ============ PASSWORD RESET ============
 
-/** Sign in with Google */
-export async function loginWithGoogle(role: UserRole): Promise<AuthResult> {
-  if (!isFirebaseConfigured()) {
-    return mockAuth('google@gmail.com', 'Google User', role, 'google');
-  }
-
-  try {
-    const result = await signInWithPopup(auth, googleProvider);
-    
-    // Check/create user profile
-    const profile = await getUserProfile(result.user.uid);
-    if (!profile) {
-      await createUserProfile(result.user.uid, {
-        name: result.user.displayName || 'User',
-        email: result.user.email || '',
-        role,
-        phone: result.user.phoneNumber || '',
-        avatar: result.user.photoURL || '',
-        location: '',
-        joinedDate: new Date().toISOString().split('T')[0],
-      });
-    }
-    
-    // Initialize session
-    await initSession(profile?.role || role, 'google');
-    
-    return { success: true, user: result.user };
-  } catch (error: unknown) {
-    const firebaseError = error as { code?: string; message?: string };
-    return {
-      success: false,
-      error: getAuthErrorMessage(firebaseError.code || ''),
-      errorCode: firebaseError.code,
-    };
-  }
-}
-
-// ============================================================
-// LOGOUT & PASSWORD RESET
-// ============================================================
-
-/** Sign out */
-export async function logout(): Promise<void> {
-  try {
-    if (isFirebaseConfigured()) {
-      await signOut(auth);
-    }
-    clearSession();
-  } catch (error) {
-    console.error('[AuthService] Logout error:', error);
-    clearSession(); // Clear session anyway
-  }
-}
-
-/** Send password reset email */
-export async function resetPassword(email: string): Promise<AuthResult> {
+export const resetPassword = async (email: string): Promise<AuthResult> => {
   if (!isFirebaseConfigured()) {
     return { success: true };
   }
@@ -271,83 +335,93 @@ export async function resetPassword(email: string): Promise<AuthResult> {
     await sendPasswordResetEmail(auth, email);
     return { success: true };
   } catch (error: unknown) {
-    const firebaseError = error as { code?: string; message?: string };
-    return {
-      success: false,
-      error: getAuthErrorMessage(firebaseError.code || ''),
-      errorCode: firebaseError.code,
-    };
+    const err = error as { code?: string };
+    return { success: false, error: getErrorMessage(err.code || 'unknown') };
   }
-}
+};
 
-// ============================================================
-// AUTH STATE LISTENER
-// ============================================================
+// ============ LOGOUT ============
 
-/** Listen for auth state changes */
-export function onAuthChange(callback: (user: User | null) => void): () => void {
-  return onAuthStateChanged(auth, callback);
-}
+export const logout = async (): Promise<void> => {
+  cleanupRecaptcha();
+  confirmationResult = null;
+  clearSession();
 
-/** Get current authenticated user */
-export function getCurrentUser(): User | null {
-  return auth.currentUser;
-}
+  if (isFirebaseConfigured()) {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  }
+};
 
-// ============================================================
-// MOCK AUTH (when Firebase is not configured)
-// ============================================================
+// ============ GET TOKEN ============
 
-function mockAuth(
-  email: string,
-  name: string,
-  role: UserRole,
-  method: 'email' | 'phone' | 'google'
-): AuthResult {
-  console.log(`[AuthService] Mock ${method} auth for:`, email || name);
-  
-  // Save mock session data
-  const mockUserData = {
-    uid: `mock_${Date.now()}`,
-    email: email || null,
-    displayName: name || (role === 'artist' ? 'Priya Sharma' : 'Amit Kumar'),
-    phoneNumber: null,
-    photoURL: null,
-    role,
-    loginMethod: method,
-    loginTimestamp: Date.now(),
-  };
-  
-  sessionStorage.setItem('hunarhub_access_token', `mock_token_${Date.now()}`);
-  sessionStorage.setItem('hunarhub_refresh_token', `mock_refresh_${Date.now()}`);
-  sessionStorage.setItem('hunarhub_token_expiry', String(Date.now() + 3600000));
-  sessionStorage.setItem('hunarhub_user_data', JSON.stringify(mockUserData));
-  sessionStorage.setItem('hunarhub_user_role', role);
-  sessionStorage.setItem('hunarhub_session_id', `mock_sess_${Date.now()}`);
-  sessionStorage.setItem('hunarhub_last_activity', String(Date.now()));
-  
-  return { success: true };
-}
+export const getUserToken = async (): Promise<string | null> => {
+  if (!isFirebaseConfigured()) return null;
+  try {
+    const user = auth.currentUser;
+    if (!user) return null;
+    return await user.getIdToken(true);
+  } catch {
+    return null;
+  }
+};
 
-// ============================================================
-// ERROR MESSAGE MAPPING
-// ============================================================
+// ============ ERROR MESSAGES ============
 
-function getAuthErrorMessage(code: string): string {
-  const messages: Record<string, string> = {
-    'auth/user-not-found': 'No account found with this email. Please register first.',
-    'auth/wrong-password': 'Incorrect password. Please try again.',
-    'auth/email-already-in-use': 'An account with this email already exists. Please login.',
-    'auth/weak-password': 'Password is too weak. Use at least 6 characters.',
-    'auth/invalid-email': 'Please enter a valid email address.',
-    'auth/too-many-requests': 'Too many failed attempts. Please try again later.',
-    'auth/network-request-failed': 'Network error. Please check your internet connection.',
-    'auth/popup-closed-by-user': 'Sign-in popup was closed. Please try again.',
-    'auth/invalid-verification-code': 'Invalid OTP. Please check and try again.',
-    'auth/code-expired': 'OTP has expired. Please request a new one.',
-    'auth/invalid-phone-number': 'Invalid phone number. Please use format: +91XXXXXXXXXX',
-    'auth/operation-not-allowed': 'This sign-in method is not enabled. Contact support.',
-    'auth/account-exists-with-different-credential': 'Account exists with a different sign-in method.',
-  };
-  return messages[code] || 'Something went wrong. Please try again.';
-}
+const getPhoneErrorMessage = (code: string, message?: string): string => {
+  switch (code) {
+    case 'auth/invalid-phone-number':
+      return 'Invalid phone number. Please enter a valid 10-digit Indian mobile number.';
+    case 'auth/too-many-requests':
+      return 'Too many attempts. Please wait a few minutes and try again.';
+    case 'auth/quota-exceeded':
+      return 'SMS quota exceeded. Please try again later or use email login.';
+    case 'auth/captcha-check-failed':
+      return 'reCAPTCHA verification failed. Please refresh and try again.';
+    case 'auth/missing-phone-number':
+      return 'Please enter your phone number.';
+    case 'auth/network-request-failed':
+      return 'Network error. Please check your internet connection.';
+    default:
+      if (message?.includes('reCAPTCHA')) {
+        return 'Please solve the reCAPTCHA first, then click Send OTP.';
+      }
+      return message || 'Failed to send OTP. Please try again.';
+  }
+};
+
+const getErrorMessage = (code: string): string => {
+  switch (code) {
+    case 'auth/email-already-in-use':
+      return 'This email is already registered. Please login instead.';
+    case 'auth/invalid-email':
+      return 'Please enter a valid email address.';
+    case 'auth/weak-password':
+      return 'Password must be at least 6 characters long.';
+    case 'auth/user-not-found':
+      return 'No account found with this email. Please register first.';
+    case 'auth/wrong-password':
+      return 'Incorrect password. Please try again.';
+    case 'auth/invalid-credential':
+      return 'Invalid email or password. Please check and try again.';
+    case 'auth/too-many-requests':
+      return 'Too many failed attempts. Please wait a few minutes.';
+    case 'auth/popup-closed-by-user':
+      return 'Login popup was closed. Please try again.';
+    case 'auth/popup-blocked':
+      return 'Popup blocked by browser. Please allow popups and try again.';
+    case 'auth/network-request-failed':
+      return 'Network error. Check your internet connection.';
+    case 'auth/invalid-verification-code':
+      return 'Invalid OTP. Please check and try again.';
+    case 'auth/code-expired':
+      return 'OTP has expired. Please request a new one.';
+    case 'auth/user-disabled':
+      return 'This account has been disabled. Contact support.';
+    default:
+      return 'Something went wrong. Please try again.';
+  }
+};

@@ -15,7 +15,7 @@ import { ChatListPage, ChatDetailPage } from '@/pages/ChatPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { EarningsPage } from '@/pages/EarningsPage';
 import { NotificationsPage } from '@/pages/NotificationsPage';
-import { Palette } from 'lucide-react';
+import { Palette, Loader2 } from 'lucide-react';
 
 function SplashScreen() {
   return (
@@ -36,8 +36,22 @@ function SplashScreen() {
   );
 }
 
+function LoadingScreen() {
+  return (
+    <div className="h-screen w-full bg-stone-50 flex flex-col items-center justify-center">
+      <Loader2 size={32} className="animate-spin text-amber-600 mb-4" />
+      <p className="text-sm text-stone-500">Restoring session...</p>
+    </div>
+  );
+}
+
 function AppRoutes() {
-  const { isLoggedIn } = useApp();
+  const { isLoggedIn, isLoading } = useApp();
+
+  // Show loading while checking session
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
 
   if (!isLoggedIn) {
     return (

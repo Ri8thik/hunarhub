@@ -1,17 +1,22 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Settings, HelpCircle, Shield, LogOut, Bell, Palette, Star, ShoppingBag, MapPin, BadgeCheck, Edit3, Moon, Globe } from 'lucide-react';
+import { ChevronRight, Settings, HelpCircle, Shield, LogOut, Bell, Palette, Star, ShoppingBag, MapPin, BadgeCheck, Edit3, Moon, Globe, Key, Database } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { artists } from '@/data/mockData';
 import { Avatar } from '@/components/Avatar';
 import { StarRating } from '@/components/StarRating';
 import { cn } from '@/utils/cn';
+import { getSessionDebugInfo } from '@/services/sessionManager';
+import { isFirebaseConfigured } from '@/config/firebase';
 
 export function ProfilePage() {
   const navigate = useNavigate();
-  const { userRole, currentUserName, currentUserId, logout, switchRole } = useApp();
+  const { userRole, currentUserName, currentUserId, logout, switchRole, currentUserEmail, sessionData } = useApp();
   const [showRoleSwitch, setShowRoleSwitch] = useState(false);
+  const [showSessionDebug, setShowSessionDebug] = useState(false);
   const artist = userRole === 'artist' ? artists.find(a => a.id === currentUserId) : null;
+  const firebaseReady = isFirebaseConfigured();
+  const debugInfo = showSessionDebug ? getSessionDebugInfo() : null;
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -145,6 +150,50 @@ export function ProfilePage() {
             <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center"><LogOut size={20} className="text-red-600" /></div>
             <span className="text-sm font-semibold text-red-600">Logout</span>
           </button>
+        </div>
+      </div>
+
+      {/* Session & Auth Debug Info */}
+      <div className="space-y-4 mb-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
+          <button onClick={() => setShowSessionDebug(!showSessionDebug)}
+            className="w-full flex items-center gap-3 p-4 hover:bg-stone-50 transition-colors">
+            <div className="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center"><Key size={20} className="text-violet-600" /></div>
+            <div className="flex-1 text-left">
+              <h3 className="text-sm font-semibold text-stone-800">Session & Token Info</h3>
+              <p className="text-xs text-stone-400">
+                {firebaseReady ? '🟢 Firebase Connected' : '🟡 Demo Mode'} • {sessionData?.loginMethod || 'N/A'}
+              </p>
+            </div>
+            <ChevronRight size={18} className={cn('text-stone-400 transition-transform', showSessionDebug && 'rotate-90')} />
+          </button>
+          {showSessionDebug && debugInfo && (
+            <div className="px-4 pb-4 space-y-2 animate-slide-down">
+              <div className="bg-stone-900 rounded-xl p-4 font-mono text-xs space-y-1">
+                <p className="text-stone-400 mb-2">// Session Debug Info</p>
+                {Object.entries(debugInfo).map(([key, value]) => (
+                  <div key={key} className="flex">
+                    <span className="text-cyan-400 min-w-[140px]">{key}:</span>
+                    <span className={cn(
+                      value === true ? 'text-green-400' :
+                      value === false ? 'text-red-400' :
+                      String(value).includes('expired') ? 'text-red-400' :
+                      'text-amber-300'
+                    )}>{String(value)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800">
+                <Database size={14} className="inline mr-1" />
+                <strong>How it works:</strong> Firebase ID tokens (JWT) are stored in sessionStorage. 
+                They auto-refresh 5 min before expiry. On page reload, session is restored from storage. 
+                If token refresh fails, you&apos;re redirected to login.
+              </div>
+              {currentUserEmail && (
+                <p className="text-xs text-stone-500">📧 Logged in as: {currentUserEmail}</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

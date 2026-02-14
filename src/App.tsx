@@ -15,6 +15,7 @@ import { ChatListPage, ChatDetailPage } from '@/pages/ChatPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { EarningsPage } from '@/pages/EarningsPage';
 import { NotificationsPage } from '@/pages/NotificationsPage';
+import { ArtistSetupPage } from '@/pages/ArtistSetupPage';
 import { Palette, Loader2 } from 'lucide-react';
 
 function SplashScreen() {
@@ -83,6 +84,7 @@ function AppRoutes() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/earnings" element={<EarningsPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/become-artist" element={<ArtistSetupPage />} />
             <Route path="/login" element={<Navigate to="/" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

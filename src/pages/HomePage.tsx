@@ -1,12 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import { Search, MapPin, ChevronRight, Star, Clock, BadgeCheck, Sparkles, TrendingUp, ShoppingBag } from 'lucide-react';
-import { artists, categories } from '@/data/mockData';
+import { Search, MapPin, ChevronRight, Star, Clock, BadgeCheck, Sparkles, TrendingUp, ShoppingBag, Loader2 } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
 import { useApp } from '@/context/AppContext';
 import { cn } from '@/utils/cn';
 
 export function HomePage() {
-  const { userRole, currentUserName } = useApp();
+  const { userRole, currentUserName, artists, categories, artistsLoading, categoriesLoading } = useApp();
   const firstName = currentUserName.split(' ')[0];
 
   if (userRole === 'artist') return <ArtistDashboard />;
@@ -44,19 +43,26 @@ export function HomePage() {
             See All <ChevronRight size={16} />
           </button>
         </div>
-        <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-8 gap-3">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => navigate(`/explore?category=${cat.name}`)}
-              className="flex flex-col items-center gap-2 p-3 lg:p-4 bg-white rounded-2xl shadow-sm hover-lift border border-stone-100"
-            >
-              <span className="text-2xl lg:text-3xl">{cat.icon}</span>
-              <span className="text-[11px] lg:text-xs font-medium text-stone-600 text-center leading-tight">{cat.name}</span>
-              <span className="text-[9px] text-stone-400">{cat.count} artists</span>
-            </button>
-          ))}
-        </div>
+        {categoriesLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 size={24} className="animate-spin text-amber-600" />
+            <span className="ml-2 text-sm text-stone-500">Loading categories...</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-8 gap-3">
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => navigate(`/explore?category=${cat.name}`)}
+                className="flex flex-col items-center gap-2 p-3 lg:p-4 bg-white rounded-2xl shadow-sm hover-lift border border-stone-100"
+              >
+                <span className="text-2xl lg:text-3xl">{cat.icon}</span>
+                <span className="text-[11px] lg:text-xs font-medium text-stone-600 text-center leading-tight">{cat.name}</span>
+                <span className="text-[9px] text-stone-400">{cat.count} artists</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Featured Artists */}
@@ -70,92 +76,105 @@ export function HomePage() {
             View All <ChevronRight size={16} />
           </button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {featuredArtists.map((artist) => (
-            <button
-              key={artist.id}
-              onClick={() => navigate(`/artist/${artist.id}`)}
-              className="bg-white rounded-2xl shadow-sm overflow-hidden hover-lift border border-stone-100 text-left"
-            >
-              <div className="h-28 lg:h-32 bg-gradient-to-br from-amber-200 to-orange-300 relative">
-                <div className="absolute -bottom-6 left-4">
-                  <Avatar name={artist.name} size="lg" className="ring-4 ring-white" />
-                </div>
-                {artist.verified && (
-                  <div className="absolute top-3 right-3">
-                    <BadgeCheck size={18} className="text-amber-700 fill-amber-100" />
+        {artistsLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 size={24} className="animate-spin text-amber-600" />
+            <span className="ml-2 text-sm text-stone-500">Loading artists...</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {featuredArtists.map((artist) => (
+              <button
+                key={artist.id}
+                onClick={() => navigate(`/artist/${artist.id}`)}
+                className="bg-white rounded-2xl shadow-sm overflow-hidden hover-lift border border-stone-100 text-left"
+              >
+                <div className="h-28 lg:h-32 bg-gradient-to-br from-amber-200 to-orange-300 relative">
+                  <div className="absolute -bottom-6 left-4">
+                    <Avatar name={artist.name} size="lg" className="ring-4 ring-white" />
                   </div>
-                )}
-              </div>
-              <div className="pt-9 pb-4 px-4">
-                <h3 className="font-semibold text-stone-800">{artist.name}</h3>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <MapPin size={12} className="text-stone-400" />
-                  <span className="text-xs text-stone-400">{artist.location}</span>
+                  {artist.verified && (
+                    <div className="absolute top-3 right-3">
+                      <BadgeCheck size={18} className="text-amber-700 fill-amber-100" />
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-3 mt-2">
-                  <div className="flex items-center gap-0.5">
-                    <Star size={13} className="text-amber-500 fill-amber-500" />
-                    <span className="text-sm font-semibold text-stone-700">{artist.rating}</span>
-                    <span className="text-xs text-stone-400">({artist.reviewCount})</span>
+                <div className="pt-9 pb-4 px-4">
+                  <h3 className="font-semibold text-stone-800">{artist.name}</h3>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <MapPin size={12} className="text-stone-400" />
+                    <span className="text-xs text-stone-400">{artist.location}</span>
                   </div>
-                  <span className="text-sm text-amber-600 font-medium">₹{artist.priceRange.min}+</span>
+                  <div className="flex items-center gap-3 mt-2">
+                    <div className="flex items-center gap-0.5">
+                      <Star size={13} className="text-amber-500 fill-amber-500" />
+                      <span className="text-sm font-semibold text-stone-700">{artist.rating}</span>
+                      <span className="text-xs text-stone-400">({artist.reviewCount})</span>
+                    </div>
+                    <span className="text-sm text-amber-600 font-medium">₹{artist.priceRange.min}+</span>
+                  </div>
+                  <div className="flex gap-1.5 mt-3 flex-wrap">
+                    {artist.skills.map(skill => (
+                      <span key={skill} className="px-2.5 py-0.5 bg-amber-50 text-amber-700 rounded-full text-[11px] font-medium">
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex gap-1.5 mt-3 flex-wrap">
-                  {artist.skills.map(skill => (
-                    <span key={skill} className="px-2.5 py-0.5 bg-amber-50 text-amber-700 rounded-full text-[11px] font-medium">
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Top Rated */}
       <div className="mb-6 lg:mb-8">
         <h2 className="text-lg lg:text-xl font-bold text-stone-800 mb-4">Top Rated Artists</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {topRated.slice(0, 6).map((artist) => (
-            <button
-              key={artist.id}
-              onClick={() => navigate(`/artist/${artist.id}`)}
-              className="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-sm hover-lift border border-stone-100 text-left"
-            >
-              <Avatar name={artist.name} size="lg" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h3 className="font-semibold text-stone-800 truncate">{artist.name}</h3>
-                  {artist.verified && <BadgeCheck size={15} className="text-amber-600 fill-amber-100 shrink-0" />}
+        {artistsLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 size={24} className="animate-spin text-amber-600" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {topRated.slice(0, 6).map((artist) => (
+              <button
+                key={artist.id}
+                onClick={() => navigate(`/artist/${artist.id}`)}
+                className="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-sm hover-lift border border-stone-100 text-left"
+              >
+                <Avatar name={artist.name} size="lg" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="font-semibold text-stone-800 truncate">{artist.name}</h3>
+                    {artist.verified && <BadgeCheck size={15} className="text-amber-600 fill-amber-100 shrink-0" />}
+                  </div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <MapPin size={12} className="text-stone-400" />
+                    <span className="text-xs text-stone-400">{artist.location}</span>
+                  </div>
+                  <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                    {artist.skills.map(skill => (
+                      <span key={skill} className="px-2 py-0.5 bg-stone-100 text-stone-600 rounded-full text-[10px] font-medium">
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <MapPin size={12} className="text-stone-400" />
-                  <span className="text-xs text-stone-400">{artist.location}</span>
+                <div className="text-right shrink-0">
+                  <div className="flex items-center gap-0.5">
+                    <Star size={16} className="text-amber-500 fill-amber-500" />
+                    <span className="text-lg font-bold text-stone-800">{artist.rating}</span>
+                  </div>
+                  <span className="text-[11px] text-stone-400">{artist.reviewCount} reviews</span>
+                  <div className="flex items-center gap-0.5 mt-0.5 justify-end">
+                    <Clock size={11} className="text-stone-400" />
+                    <span className="text-[11px] text-stone-400">{artist.responseTime}</span>
+                  </div>
                 </div>
-                <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                  {artist.skills.map(skill => (
-                    <span key={skill} className="px-2 py-0.5 bg-stone-100 text-stone-600 rounded-full text-[10px] font-medium">
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="text-right shrink-0">
-                <div className="flex items-center gap-0.5">
-                  <Star size={16} className="text-amber-500 fill-amber-500" />
-                  <span className="text-lg font-bold text-stone-800">{artist.rating}</span>
-                </div>
-                <span className="text-[11px] text-stone-400">{artist.reviewCount} reviews</span>
-                <div className="flex items-center gap-0.5 mt-0.5 justify-end">
-                  <Clock size={11} className="text-stone-400" />
-                  <span className="text-[11px] text-stone-400">{artist.responseTime}</span>
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* How It Works */}
@@ -182,7 +201,7 @@ export function HomePage() {
 
 function ArtistDashboard() {
   const navigate = useNavigate();
-  const { currentUserName, orders, currentUserId } = useApp();
+  const { currentUserName, orders, currentUserId, artists } = useApp();
   const firstName = currentUserName.split(' ')[0];
   const myOrders = orders.filter(o => o.artistId === currentUserId);
   const pendingRequests = myOrders.filter(o => o.status === 'requested').length;
@@ -222,7 +241,7 @@ function ArtistDashboard() {
           { label: 'Pending Requests', value: pendingRequests, icon: Clock, color: 'text-blue-600 bg-blue-100', trend: '+2 new' },
           { label: 'Active Orders', value: activeOrders, icon: ShoppingBag, color: 'text-amber-600 bg-amber-100', trend: 'In progress' },
           { label: 'Delivered', value: deliveredCount, icon: TrendingUp, color: 'text-purple-600 bg-purple-100', trend: 'Awaiting review' },
-          { label: 'Completed', value: completedCount, icon: Star, color: 'text-green-600 bg-green-100', trend: `⭐ ${artist?.rating}` },
+          { label: 'Completed', value: completedCount, icon: Star, color: 'text-green-600 bg-green-100', trend: `⭐ ${artist?.rating || 0}` },
         ].map((stat) => (
           <div key={stat.label} className="bg-white rounded-2xl p-4 lg:p-5 shadow-sm border border-stone-100">
             <div className="flex items-center justify-between mb-3">
@@ -261,7 +280,12 @@ function ArtistDashboard() {
         <div className="lg:col-span-2">
           <h2 className="text-lg font-bold text-stone-800 mb-3">Recent Orders</h2>
           <div className="space-y-3">
-            {myOrders.map(order => (
+            {myOrders.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-2xl border border-stone-100">
+                <span className="text-4xl">📋</span>
+                <p className="text-stone-400 mt-3">No orders yet</p>
+              </div>
+            ) : myOrders.map(order => (
               <button
                 key={order.id}
                 onClick={() => navigate(`/order/${order.id}`)}

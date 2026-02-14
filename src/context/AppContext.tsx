@@ -1,10 +1,9 @@
 // ============================================================
-// 🏗️ APP CONTEXT — State Management with Firebase + Session
+// 🏗️ APP CONTEXT — State Management with Firebase + Firestore
 // ============================================================
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import { type UserRole, type Order, type OrderStatus } from '@/types';
-import { orders as initialOrders } from '@/data/mockData';
+import { type UserRole, type Order, type OrderStatus, type Artist, type Category } from '@/types';
 import {
   getUserData,
   getUserRole,
@@ -16,21 +15,40 @@ import {
 } from '@/services/sessionManager';
 import { logout as authLogout, onAuthChange } from '@/services/authService';
 import { isFirebaseConfigured } from '@/config/firebase';
+import {
+  getArtists,
+  getCategories,
+  getOrders,
+  createOrder as firestoreCreateOrder,
+  updateOrderStatus as firestoreUpdateOrderStatus,
+  checkIsArtist,
+  type CreateOrderData,
+} from '@/services/firestoreService';
 
 interface AppState {
   isLoggedIn: boolean;
   isLoading: boolean;
   userRole: UserRole;
+  isArtist: boolean;
+  artistChecked: boolean;
   currentUserId: string;
   currentUserName: string;
   currentUserEmail: string;
   sessionData: SessionUserData | null;
+  artists: Artist[];
+  categories: Category[];
   orders: Order[];
+  artistsLoading: boolean;
+  categoriesLoading: boolean;
+  ordersLoading: boolean;
   login: (role: UserRole, userId?: string, userName?: string) => void;
   logout: () => void;
   switchRole: (role: UserRole) => void;
+  becomeArtist: () => void;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   addOrder: (order: Order) => void;
+  refreshOrders: () => Promise<void>;
+  refreshArtists: () => Promise<void>;
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -39,17 +57,95 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole>('customer');
-  const [currentUserId, setCurrentUserId] = useState('c1');
-  const [currentUserName, setCurrentUserName] = useState('Amit Kumar');
+  const [isArtist, setIsArtist] = useState(false);
+  const [artistChecked, setArtistChecked] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState('');
+  const [currentUserName, setCurrentUserName] = useState('');
   const [currentUserEmail, setCurrentUserEmail] = useState('');
   const [sessionData, setSessionData] = useState<SessionUserData | null>(null);
-  const [orders, setOrders] = useState<Order[]>(initialOrders);
+  
+  // Data from Firestore
+  const [artists, setArtists] = useState<Artist[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [artistsLoading, setArtistsLoading] = useState(true);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+
+  // ---- Fetch Artists from Firestore ----
+  const fetchArtists = useCallback(async () => {
+    setArtistsLoading(true);
+    try {
+      const data = await getArtists();
+      setArtists(data);
+    } catch (error) {
+      console.error('[AppContext] Error fetching artists:', error);
+    } finally {
+      setArtistsLoading(false);
+    }
+  }, []);
+
+  // ---- Fetch Categories from Firestore ----
+  const fetchCategories = useCallback(async () => {
+    setCategoriesLoading(true);
+    try {
+      const data = await getCategories();
+      setCategories(data);
+    } catch (error) {
+      console.error('[AppContext] Error fetching categories:', error);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  }, []);
+
+  // ---- Fetch Orders from Firestore ----
+  const fetchOrders = useCallback(async (userId: string, role: UserRole) => {
+    setOrdersLoading(true);
+    try {
+      const data = await getOrders(userId, role);
+      setOrders(data);
+    } catch (error) {
+      console.error('[AppContext] Error fetching orders:', error);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
+
+  // ---- Check if user has artist profile in Firestore DB ----
+  const checkArtistStatusFromDB = useCallback(async (userId: string) => {
+    console.log('[AppContext] 🔍 Checking artist status from Firestore for:', userId);
+    setArtistChecked(false);
+    try {
+      const result = await checkIsArtist(userId);
+      console.log('[AppContext] Artist status from DB:', result);
+      setIsArtist(result);
+      
+      // Save to sessionStorage for quick access on page refresh
+      sessionStorage.setItem('hunarhub_is_artist', String(result));
+      
+      // If user was previously in artist mode and is still an artist, keep artist mode
+      const savedRole = getUserRole();
+      if (result && savedRole === 'artist') {
+        setUserRole('artist');
+      }
+    } catch (error) {
+      console.error('[AppContext] Error checking artist status:', error);
+      setIsArtist(false);
+    } finally {
+      setArtistChecked(true);
+    }
+  }, []);
+
+  // ---- Load global data on mount ----
+  useEffect(() => {
+    fetchArtists();
+    fetchCategories();
+  }, [fetchArtists, fetchCategories]);
 
   // ---- Restore Session on Mount ----
   useEffect(() => {
     async function checkSession() {
       try {
-        // Check session storage first
         if (isSessionValid()) {
           const userData = getUserData();
           const role = getUserRole();
@@ -58,12 +154,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setIsLoggedIn(true);
             setUserRole(role);
             setCurrentUserId(userData.uid);
-            setCurrentUserName(userData.displayName || (role === 'artist' ? 'Priya Sharma' : 'Amit Kumar'));
+            setCurrentUserName(userData.displayName || 'User');
             setCurrentUserEmail(userData.email || '');
             setSessionData(userData);
             
-            // Restore token refresh timer
             await restoreSession();
+            fetchOrders(userData.uid, role);
+            
+            // Check artist status from Firestore DB
+            await checkArtistStatusFromDB(userData.uid);
           }
         }
       } catch (error) {
@@ -74,7 +173,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     
     checkSession();
-  }, []);
+  }, [fetchOrders, checkArtistStatusFromDB]);
 
   // ---- Listen for Firebase Auth State Changes ----
   useEffect(() => {
@@ -82,22 +181,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const unsubscribe = onAuthChange((user) => {
       if (user) {
-        // User is signed in via Firebase
         const role = getUserRole() || 'customer';
         setIsLoggedIn(true);
         setCurrentUserId(user.uid);
         setCurrentUserName(user.displayName || 'User');
         setCurrentUserEmail(user.email || '');
         setUserRole(role);
+        fetchOrders(user.uid, role);
+        
+        // Check artist status from Firestore DB on auth change
+        checkArtistStatusFromDB(user.uid);
       } else if (!isSessionValid()) {
-        // User is signed out and no valid session
         setIsLoggedIn(false);
       }
       setIsLoading(false);
     });
 
     return unsubscribe;
-  }, []);
+  }, [fetchOrders, checkArtistStatusFromDB]);
 
   // ---- Listen for Session Expiry Events ----
   useEffect(() => {
@@ -112,27 +213,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('session-expired', handleSessionExpired);
   }, []);
 
-  // ---- Login ----
+  // ---- Login (everyone starts as customer) ----
   const login = useCallback((role: UserRole, userId?: string, userName?: string) => {
     setIsLoggedIn(true);
-    setUserRole(role);
+    setUserRole('customer'); // Always start as customer
     
-    // Get data from session if available
     const userData = getUserData();
     
     if (userData) {
       setCurrentUserId(userData.uid);
-      setCurrentUserName(userData.displayName || (role === 'artist' ? 'Priya Sharma' : 'Amit Kumar'));
+      setCurrentUserName(userData.displayName || 'User');
       setCurrentUserEmail(userData.email || '');
       setSessionData(userData);
+      fetchOrders(userData.uid, 'customer');
+      
+      // Check artist status from Firestore DB
+      checkArtistStatusFromDB(userData.uid);
     } else {
-      // Fallback for mock mode
-      const id = userId || (role === 'artist' ? 'a1' : 'c1');
-      const name = userName || (role === 'artist' ? 'Priya Sharma' : 'Amit Kumar');
+      const id = userId || 'guest';
+      const name = userName || 'User';
       setCurrentUserId(id);
       setCurrentUserName(name);
+      fetchOrders(id, role);
     }
-  }, []);
+  }, [fetchOrders, checkArtistStatusFromDB]);
 
   // ---- Logout ----
   const logout = useCallback(async () => {
@@ -142,41 +246,96 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCurrentUserId('');
     setCurrentUserName('');
     setCurrentUserEmail('');
+    setUserRole('customer');
+    setIsArtist(false);
+    setArtistChecked(false);
+    setOrders([]);
+    sessionStorage.removeItem('hunarhub_is_artist');
   }, []);
 
-  // ---- Switch Role ----
+  // ---- Switch Role (only if user is an artist from DB) ----
   const switchRole = useCallback((role: UserRole) => {
+    // Only allow switching to artist if isArtist is true (confirmed from DB)
+    if (role === 'artist' && !isArtist) {
+      console.warn('[AppContext] Cannot switch to artist — no artist profile in DB');
+      return;
+    }
+    
     setUserRole(role);
     updateUserRole(role);
     
-    // Update user identity based on role (for mock mode)
-    if (!isFirebaseConfigured()) {
-      if (role === 'artist') {
-        setCurrentUserId('a1');
-        setCurrentUserName('Priya Sharma');
-      } else {
-        setCurrentUserId('c1');
-        setCurrentUserName('Amit Kumar');
-      }
+    const userData = getUserData();
+    if (userData) {
+      fetchOrders(userData.uid, role);
     }
-  }, []);
+  }, [isArtist, fetchOrders]);
+
+  // ---- Become an Artist (after creating profile in ArtistSetupPage) ----
+  const becomeArtist = useCallback(() => {
+    setIsArtist(true);
+    setArtistChecked(true);
+    setUserRole('artist');
+    updateUserRole('artist');
+    sessionStorage.setItem('hunarhub_is_artist', 'true');
+    
+    // Refresh artists list to include the new artist
+    fetchArtists();
+  }, [fetchArtists]);
 
   // ---- Order Management ----
-  const updateOrderStatusFn = useCallback((orderId: string, status: OrderStatus) => {
+  const updateOrderStatusFn = useCallback(async (orderId: string, status: OrderStatus) => {
     setOrders(prev => prev.map(o =>
       o.id === orderId ? { ...o, status, updatedAt: new Date().toISOString().split('T')[0] } : o
     ));
+    try {
+      await firestoreUpdateOrderStatus(orderId, status);
+    } catch (error) {
+      console.error('[AppContext] Error updating order status in Firestore:', error);
+    }
   }, []);
 
-  const addOrder = useCallback((order: Order) => {
+  const addOrder = useCallback(async (order: Order) => {
     setOrders(prev => [order, ...prev]);
+    try {
+      const orderData: CreateOrderData = {
+        customerId: order.customerId,
+        customerName: order.customerName,
+        artistId: order.artistId,
+        artistName: order.artistName,
+        title: order.title,
+        description: order.description,
+        referenceImages: order.referenceImages,
+        budget: order.budget,
+        deadline: order.deadline,
+        category: order.category,
+      };
+      await firestoreCreateOrder(orderData);
+    } catch (error) {
+      console.error('[AppContext] Error creating order in Firestore:', error);
+    }
   }, []);
+
+  const refreshOrders = useCallback(async () => {
+    const userId = currentUserId;
+    const role = userRole;
+    if (userId) {
+      await fetchOrders(userId, role);
+    }
+  }, [currentUserId, userRole, fetchOrders]);
+
+  const refreshArtists = useCallback(async () => {
+    await fetchArtists();
+  }, [fetchArtists]);
 
   return (
     <AppContext.Provider value={{
-      isLoggedIn, isLoading, userRole, currentUserId, currentUserName, currentUserEmail,
-      sessionData, orders, login, logout, switchRole,
+      isLoggedIn, isLoading, userRole, isArtist, artistChecked,
+      currentUserId, currentUserName, currentUserEmail,
+      sessionData, artists, categories, orders,
+      artistsLoading, categoriesLoading, ordersLoading,
+      login, logout, switchRole, becomeArtist,
       updateOrderStatus: updateOrderStatusFn, addOrder,
+      refreshOrders, refreshArtists,
     }}>
       {children}
     </AppContext.Provider>

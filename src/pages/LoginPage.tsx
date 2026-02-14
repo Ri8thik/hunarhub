@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Palette, Loader2, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { type UserRole } from '@/types';
 import { cn } from '@/utils/cn';
 import {
   loginWithEmail,
@@ -14,7 +13,6 @@ import { isFirebaseConfigured } from '@/config/firebase';
 
 export function LoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [role, setRole] = useState<UserRole>('customer');
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,15 +45,16 @@ export function LoginPage() {
         if (!name.trim()) { setError('Please enter your full name'); setLoading(false); return; }
         if (!email.trim()) { setError('Please enter your email address'); setLoading(false); return; }
         if (password.length < 6) { setError('Password must be at least 6 characters'); setLoading(false); return; }
-        result = await registerWithEmail(email, password, name, role);
+        // Everyone registers as customer first
+        result = await registerWithEmail(email, password, name, 'customer');
       } else {
         if (!email.trim()) { setError('Please enter your email address'); setLoading(false); return; }
         if (!password.trim()) { setError('Please enter your password'); setLoading(false); return; }
-        result = await loginWithEmail(email, password, role);
+        result = await loginWithEmail(email, password, 'customer');
       }
 
       if (result.success) {
-        login(role);
+        login('customer');
         navigate('/');
       } else {
         const errMsg = result.error || 'Authentication failed';
@@ -83,9 +82,10 @@ export function LoginPage() {
     setLoading(true);
 
     try {
-      const result = await loginWithGoogle(role);
+      // Everyone starts as customer
+      const result = await loginWithGoogle('customer');
       if (result.success) {
-        login(role);
+        login('customer');
         navigate('/');
       } else {
         setError(result.error || 'Google sign-in failed');
@@ -265,8 +265,8 @@ export function LoginPage() {
           </div>
           <p className="text-stone-500 text-sm mb-6">
             {mode === 'login'
-              ? 'Sign in with your existing account'
-              : '🎉 Create a new account to get started'}
+              ? 'Sign in to browse artists and order custom art'
+              : '🎉 Join HunarHub as a customer — you can become an artist later!'}
           </p>
 
           {/* Error / Success Messages */}
@@ -295,18 +295,6 @@ export function LoginPage() {
               <span>{success}</span>
             </div>
           )}
-
-          {/* ===== Role Selector ===== */}
-          <div className="flex bg-stone-100 rounded-xl p-1 mb-6">
-            <button onClick={() => { setRole('customer'); clearMessages(); }}
-              className={cn('flex-1 py-3 rounded-lg text-sm font-semibold transition-all', role === 'customer' ? 'bg-white text-amber-700 shadow-sm' : 'text-stone-500 hover:text-stone-700')}>
-              🛒 Customer
-            </button>
-            <button onClick={() => { setRole('artist'); clearMessages(); }}
-              className={cn('flex-1 py-3 rounded-lg text-sm font-semibold transition-all', role === 'artist' ? 'bg-white text-amber-700 shadow-sm' : 'text-stone-500 hover:text-stone-700')}>
-              🎨 Artist
-            </button>
-          </div>
 
           {/* ================================================================ */}
           {/* EMAIL FORM                                                       */}
@@ -407,6 +395,13 @@ export function LoginPage() {
                 ⚡ First time? You need to <strong>Sign Up</strong> first before logging in
               </p>
             )}
+          </div>
+
+          {/* Info about becoming artist */}
+          <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
+            <p className="text-xs text-amber-800">
+              🎨 <strong>Are you an artist?</strong> Sign up first as a customer, then go to <strong>Profile → Become an Artist</strong> to create your artist profile and start receiving orders!
+            </p>
           </div>
 
           {/* Demo hint */}

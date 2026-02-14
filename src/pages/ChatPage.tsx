@@ -1,26 +1,102 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Send, Image, Phone, MoreVertical } from 'lucide-react';
-import { chatThreads, chatMessages } from '@/data/mockData';
+import { ArrowLeft, Send, Image, Phone, MoreVertical, Loader2 } from 'lucide-react';
+import { getChatThreads, getChatMessages } from '@/services/firestoreService';
 import { Avatar } from '@/components/Avatar';
+import { useApp } from '@/context/AppContext';
 import { cn } from '@/utils/cn';
+
+interface ChatThreadDisplay {
+  id: string;
+  participantName: string;
+  participantId: string;
+  lastMessage: string;
+  lastMessageTime: string;
+  unreadCount: number;
+  orderId?: string;
+}
+
+interface MessageDisplay {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  content: string;
+  timestamp: string;
+  type: 'text' | 'image';
+  read: boolean;
+}
 
 export function ChatListPage() {
   const navigate = useNavigate();
+  const { currentUserId } = useApp();
+  const [threads, setThreads] = useState<ChatThreadDisplay[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchThreads() {
+      setLoading(true);
+      try {
+        const data = await getChatThreads(currentUserId);
+        // Transform Firestore data to display format
+        const displayThreads: ChatThreadDisplay[] = data.map((t) => {
+          const raw = t as unknown as Record<string, unknown>;
+          // Handle both formats: old (participantName) and new (participantNames map)
+          let name = 'Unknown';
+          let partId = '';
+
+          if (raw.participantName) {
+            name = raw.participantName as string;
+            partId = (raw.participantId as string) || '';
+          } else if (raw.participantNames && typeof raw.participantNames === 'object') {
+            const names = raw.participantNames as Record<string, string>;
+            const participants = (raw.participants as string[]) || [];
+            const otherId = participants.find(p => p !== currentUserId) || '';
+            name = names[otherId] || 'Unknown';
+            partId = otherId;
+          } else if (raw.participants && Array.isArray(raw.participants)) {
+            const participants = raw.participants as string[];
+            partId = participants.find(p => p !== currentUserId) || '';
+            name = partId;
+          }
+
+          return {
+            id: t.id,
+            participantName: name,
+            participantId: partId,
+            lastMessage: (raw.lastMessage as string) || '',
+            lastMessageTime: (raw.lastMessageTime as string) || '',
+            unreadCount: (raw.unreadCount as number) || 0,
+            orderId: raw.orderId as string | undefined,
+          };
+        });
+        setThreads(displayThreads);
+      } catch (error) {
+        console.error('Error fetching chat threads:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchThreads();
+  }, [currentUserId]);
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto animate-fade-in">
       <h1 className="text-xl lg:text-2xl font-bold text-stone-800 mb-4">Messages</h1>
 
-      {chatThreads.length === 0 ? (
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 size={32} className="animate-spin text-amber-600" />
+          <span className="ml-3 text-stone-500">Loading messages...</span>
+        </div>
+      ) : threads.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-2xl border border-stone-100">
           <span className="text-5xl">💬</span>
           <h3 className="text-lg font-semibold text-stone-700 mt-4">No messages yet</h3>
-          <p className="text-sm text-stone-400 mt-1">Start a conversation with an artist!</p>
+          <p className="text-sm text-stone-400 mt-1">Start a conversation by requesting custom art from an artist!</p>
         </div>
       ) : (
         <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100">
-          {chatThreads.map(thread => (
+          {threads.map(thread => (
             <button key={thread.id} onClick={() => navigate(`/chat/${thread.id}`)}
               className="w-full flex items-center gap-4 px-5 py-4 hover:bg-stone-50 transition-colors text-left">
               <div className="relative">
@@ -60,15 +136,84 @@ export function ChatListPage() {
 export function ChatDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { currentUserId } = useApp();
   const [newMessage, setNewMessage] = useState('');
-  const [messages, setMessages] = useState(chatMessages[id || ''] || []);
+  const [messages, setMessages] = useState<MessageDisplay[]>([]);
+  const [thread, setThread] = useState<ChatThreadDisplay | null>(null);
+  const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const thread = chatThreads.find(t => t.id === id);
+  useEffect(() => {
+    async function fetchData() {
+      if (!id) return;
+      setLoading(true);
+      try {
+        const [threadsRaw, msgsRaw] = await Promise.all([
+          getChatThreads(currentUserId),
+          getChatMessages(id),
+        ]);
+
+        // Find and transform thread
+        const rawThread = threadsRaw.find(t => t.id === id);
+        if (rawThread) {
+          const raw = rawThread as unknown as Record<string, unknown>;
+          let name = 'Unknown';
+          let partId = '';
+          if (raw.participantName) {
+            name = raw.participantName as string;
+            partId = (raw.participantId as string) || '';
+          } else if (raw.participantNames && typeof raw.participantNames === 'object') {
+            const names = raw.participantNames as Record<string, string>;
+            const participants = (raw.participants as string[]) || [];
+            const otherId = participants.find((p: string) => p !== currentUserId) || '';
+            name = names[otherId] || 'Unknown';
+            partId = otherId;
+          }
+          setThread({
+            id: rawThread.id,
+            participantName: name,
+            participantId: partId,
+            lastMessage: (raw.lastMessage as string) || '',
+            lastMessageTime: (raw.lastMessageTime as string) || '',
+            unreadCount: (raw.unreadCount as number) || 0,
+            orderId: raw.orderId as string | undefined,
+          });
+        }
+
+        // Transform messages
+        const displayMsgs: MessageDisplay[] = msgsRaw.map((m) => {
+          const raw = m as unknown as Record<string, unknown>;
+          return {
+            id: m.id,
+            senderId: (raw.senderId as string) || '',
+            receiverId: (raw.receiverId as string) || '',
+            content: (raw.content as string) || '',
+            timestamp: (raw.timestamp as string) || (raw.createdAt as string) || '',
+            type: (raw.type as 'text' | 'image') || 'text',
+            read: (raw.read as boolean) || false,
+          };
+        });
+        setMessages(displayMsgs);
+      } catch (error) {
+        console.error('Error fetching chat:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [id, currentUserId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 size={32} className="animate-spin text-amber-600" />
+      </div>
+    );
+  }
 
   if (!thread) {
     return <div className="flex items-center justify-center h-64"><p className="text-stone-500">Chat not found</p></div>;
@@ -78,7 +223,7 @@ export function ChatDetailPage() {
     if (!newMessage.trim()) return;
     setMessages(prev => [...prev, {
       id: `m${Date.now()}`,
-      senderId: 'c1',
+      senderId: currentUserId,
       receiverId: thread.participantId,
       content: newMessage,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -115,8 +260,13 @@ export function ChatDetailPage() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-4 space-y-3 bg-stone-50">
-        {messages.map(msg => {
-          const isMe = msg.senderId === 'c1';
+        {messages.length === 0 ? (
+          <div className="text-center py-12">
+            <span className="text-4xl">💬</span>
+            <p className="text-stone-400 mt-3 text-sm">No messages yet. Say hello!</p>
+          </div>
+        ) : messages.map(msg => {
+          const isMe = msg.senderId === currentUserId;
           return (
             <div key={msg.id} className={cn('flex', isMe ? 'justify-end' : 'justify-start')}>
               <div className={cn(

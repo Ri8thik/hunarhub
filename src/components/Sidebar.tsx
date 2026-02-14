@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Search, ShoppingBag, MessageSquare, User, Wallet, Palette, LogOut } from 'lucide-react';
+import { Home, Search, ShoppingBag, MessageSquare, User, Wallet, Palette, LogOut, ArrowRightLeft } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { cn } from '@/utils/cn';
 
@@ -22,8 +22,14 @@ const artistLinks = [
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { userRole, currentUserName, logout } = useApp();
-  const links = userRole === 'artist' ? artistLinks : customerLinks;
+  const { userRole, isArtist, artistChecked, currentUserName, logout, switchRole } = useApp();
+
+  // Only show artist links if:
+  // 1. artistChecked is true (DB check is done)
+  // 2. isArtist is true (artist profile exists in DB)
+  // 3. userRole is 'artist' (user has switched to artist mode)
+  const showArtistMode = artistChecked && isArtist && userRole === 'artist';
+  const links = showArtistMode ? artistLinks : customerLinks;
 
   const handleLogout = () => {
     logout();
@@ -43,14 +49,27 @@ export function Sidebar() {
         </div>
       </div>
 
+      {/* Current Mode Badge */}
+      <div className="px-4 pt-4 pb-2">
+        <div className={cn(
+          'flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold',
+          showArtistMode
+            ? 'bg-amber-50 text-amber-700 border border-amber-100'
+            : 'bg-blue-50 text-blue-700 border border-blue-100'
+        )}>
+          {showArtistMode ? '🎨' : '🛒'}
+          <span>{showArtistMode ? 'Artist Mode' : 'Customer Mode'}</span>
+        </div>
+      </div>
+
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-2 space-y-1">
         {links.map((link) => {
           const isActive = location.pathname === link.path;
           const Icon = link.icon;
           return (
             <button
-              key={link.path}
+              key={link.path + link.label}
               onClick={() => navigate(link.path)}
               className={cn(
                 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all',
@@ -68,6 +87,32 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Role Switcher — ONLY if artist profile exists in DB */}
+      {artistChecked && isArtist && (
+        <div className="px-3 pb-2">
+          <button
+            onClick={() => switchRole(userRole === 'customer' ? 'artist' : 'customer')}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 transition-all border border-purple-100"
+          >
+            <ArrowRightLeft size={18} />
+            <span>Switch to {userRole === 'customer' ? 'Artist' : 'Customer'}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Become Artist — ONLY if artist profile does NOT exist in DB */}
+      {artistChecked && !isArtist && (
+        <div className="px-3 pb-2">
+          <button
+            onClick={() => navigate('/become-artist')}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 transition-all border border-amber-200"
+          >
+            <Palette size={18} />
+            <span>Become an Artist 🎨</span>
+          </button>
+        </div>
+      )}
 
       {/* User Info */}
       <div className="border-t border-stone-100 p-4">

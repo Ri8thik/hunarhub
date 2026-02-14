@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Star, Clock, BadgeCheck, Share2, Heart, MessageSquare, ShoppingBag } from 'lucide-react';
-import { artists, reviews, getPortfolioColor } from '@/data/mockData';
+import { ArrowLeft, MapPin, Star, Clock, BadgeCheck, Share2, Heart, MessageSquare, ShoppingBag, Loader2 } from 'lucide-react';
+import { getPortfolioColor } from '@/utils/helpers';
+import { getArtistById, getArtistReviews } from '@/services/firestoreService';
 import { Avatar } from '@/components/Avatar';
 import { StarRating } from '@/components/StarRating';
 import { cn } from '@/utils/cn';
+import { type Artist, type Review } from '@/types';
 
 type Tab = 'portfolio' | 'reviews' | 'about';
 
@@ -13,13 +15,42 @@ export function ArtistProfilePage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('portfolio');
   const [liked, setLiked] = useState(false);
+  const [artist, setArtist] = useState<Artist | null>(null);
+  const [artistReviews, setArtistReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const artist = artists.find(a => a.id === id);
+  useEffect(() => {
+    async function fetchData() {
+      if (!id) return;
+      setLoading(true);
+      try {
+        const [artistData, reviewsData] = await Promise.all([
+          getArtistById(id),
+          getArtistReviews(id),
+        ]);
+        setArtist(artistData);
+        setArtistReviews(reviewsData);
+      } catch (error) {
+        console.error('Error fetching artist:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 size={32} className="animate-spin text-amber-600" />
+        <span className="ml-3 text-stone-500">Loading artist profile...</span>
+      </div>
+    );
+  }
+
   if (!artist) {
     return <div className="flex items-center justify-center h-64"><p className="text-stone-500">Artist not found</p></div>;
   }
-
-  const artistReviews = reviews.filter(r => r.artistId === id);
 
   return (
     <div className="max-w-5xl mx-auto p-4 lg:p-8 animate-fade-in">

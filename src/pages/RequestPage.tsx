@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, Calendar, IndianRupee, FileText } from 'lucide-react';
-import { artists, categories } from '@/data/mockData';
+import { ArrowLeft, Upload, Calendar, IndianRupee, FileText, Loader2 } from 'lucide-react';
+import { getArtistById } from '@/services/firestoreService';
 import { useApp } from '@/context/AppContext';
 import { Avatar } from '@/components/Avatar';
+import { type Artist } from '@/types';
 
 export function RequestPage() {
   const { artistId } = useParams();
   const navigate = useNavigate();
-  const { addOrder, currentUserId, currentUserName } = useApp();
-  const artist = artists.find(a => a.id === artistId);
+  const { addOrder, currentUserId, currentUserName, categories } = useApp();
+  const [artist, setArtist] = useState<Artist | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -17,6 +19,30 @@ export function RequestPage() {
   const [budget, setBudget] = useState('');
   const [deadline, setDeadline] = useState('');
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    async function fetchArtist() {
+      if (!artistId) return;
+      setLoading(true);
+      try {
+        const data = await getArtistById(artistId);
+        setArtist(data);
+      } catch (error) {
+        console.error('Error fetching artist:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchArtist();
+  }, [artistId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 size={32} className="animate-spin text-amber-600" />
+      </div>
+    );
+  }
 
   if (!artist) {
     return <div className="flex items-center justify-center h-64"><p className="text-stone-500">Artist not found</p></div>;

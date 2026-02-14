@@ -22,11 +22,17 @@ const artistTabs = [
 export function MobileNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { userRole } = useApp();
-  const tabs = userRole === 'artist' ? artistTabs : customerTabs;
+  const { userRole, isArtist, artistChecked } = useApp();
+
+  // Only show artist tabs if:
+  // 1. DB check is done (artistChecked)
+  // 2. Artist profile exists in DB (isArtist)
+  // 3. User has switched to artist mode (userRole === 'artist')
+  const showArtistTabs = artistChecked && isArtist && userRole === 'artist';
+  const tabs = showArtistTabs ? artistTabs : customerTabs;
 
   // Hide on certain pages
-  const hiddenPrefixes = ['/chat/', '/artist/', '/request/', '/order/'];
+  const hiddenPrefixes = ['/chat/', '/artist/', '/request/', '/order/', '/become-artist'];
   if (hiddenPrefixes.some(p => location.pathname.startsWith(p))) return null;
 
   return (
@@ -37,7 +43,7 @@ export function MobileNav() {
           const Icon = tab.icon;
           return (
             <button
-              key={tab.path}
+              key={tab.path + tab.label}
               onClick={() => navigate(tab.path)}
               className={cn(
                 'flex flex-col items-center justify-center py-1.5 px-3 rounded-xl transition-all min-w-[52px]',

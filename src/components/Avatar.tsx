@@ -1,4 +1,4 @@
-import { getAvatarColor, getInitials } from '@/data/mockData';
+import { getAvatarColor, getInitials } from '@/utils/helpers';
 import { cn } from '@/utils/cn';
 
 interface AvatarProps {

@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, X, MapPin, Star, Clock, BadgeCheck } from 'lucide-react';
-import { artists, categories } from '@/data/mockData';
+import { Search, SlidersHorizontal, X, MapPin, Star, Clock, BadgeCheck, Loader2 } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
+import { useApp } from '@/context/AppContext';
 import { cn } from '@/utils/cn';
 
 export function ExplorePage() {
   const navigate = useNavigate();
+  const { artists, categories, artistsLoading } = useApp();
   const [searchParams] = useSearchParams();
   const initialCat = searchParams.get('category') || '';
   const [search, setSearch] = useState('');
@@ -38,7 +39,7 @@ export function ExplorePage() {
       case 'reviews': results.sort((a, b) => b.reviewCount - a.reviewCount); break;
     }
     return results;
-  }, [search, selectedCategory, sortBy, budgetRange]);
+  }, [search, selectedCategory, sortBy, budgetRange, artists]);
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto animate-fade-in">
@@ -133,61 +134,71 @@ export function ExplorePage() {
       {/* Results Count */}
       <p className="text-sm text-stone-400 mb-4">{filtered.length} artists found</p>
 
-      {/* Results Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.map(artist => (
-          <button
-            key={artist.id}
-            onClick={() => navigate(`/artist/${artist.id}`)}
-            className="bg-white rounded-2xl p-5 shadow-sm hover-lift border border-stone-100 text-left"
-          >
-            <div className="flex items-start gap-4">
-              <Avatar name={artist.name} size="lg" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h3 className="font-semibold text-stone-800 truncate">{artist.name}</h3>
-                  {artist.verified && <BadgeCheck size={15} className="text-amber-600 fill-amber-100 shrink-0" />}
-                  <span className={cn(
-                    'ml-auto px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0',
-                    artist.availability === 'available' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                  )}>
-                    {artist.availability === 'available' ? '🟢 Available' : '🟡 Busy'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 mt-1">
-                  <MapPin size={12} className="text-stone-400" />
-                  <span className="text-xs text-stone-400">{artist.location}</span>
-                </div>
-                <p className="text-xs text-stone-500 mt-1.5 line-clamp-2">{artist.bio}</p>
-                <div className="flex items-center gap-3 mt-2">
-                  <div className="flex items-center gap-0.5">
-                    <Star size={13} className="text-amber-500 fill-amber-500" />
-                    <span className="text-sm font-semibold text-stone-700">{artist.rating}</span>
-                    <span className="text-[11px] text-stone-400">({artist.reviewCount})</span>
-                  </div>
-                  <div className="flex items-center gap-0.5">
-                    <Clock size={12} className="text-stone-400" />
-                    <span className="text-xs text-stone-400">{artist.responseTime}</span>
-                  </div>
-                  <span className="text-xs font-semibold text-amber-700">₹{artist.priceRange.min}+</span>
-                </div>
-                <div className="flex gap-1.5 mt-2 flex-wrap">
-                  {artist.skills.map(skill => (
-                    <span key={skill} className="px-2 py-0.5 bg-stone-100 text-stone-600 rounded-full text-[10px] font-medium">{skill}</span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {filtered.length === 0 && (
-        <div className="text-center py-16">
-          <span className="text-5xl">🔍</span>
-          <h3 className="text-lg font-semibold text-stone-700 mt-4">No artists found</h3>
-          <p className="text-sm text-stone-400 mt-1">Try adjusting your search or filters</p>
+      {/* Loading State */}
+      {artistsLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 size={32} className="animate-spin text-amber-600" />
+          <span className="ml-3 text-stone-500">Loading artists from database...</span>
         </div>
+      ) : (
+        <>
+          {/* Results Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filtered.map(artist => (
+              <button
+                key={artist.id}
+                onClick={() => navigate(`/artist/${artist.id}`)}
+                className="bg-white rounded-2xl p-5 shadow-sm hover-lift border border-stone-100 text-left"
+              >
+                <div className="flex items-start gap-4">
+                  <Avatar name={artist.name} size="lg" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="font-semibold text-stone-800 truncate">{artist.name}</h3>
+                      {artist.verified && <BadgeCheck size={15} className="text-amber-600 fill-amber-100 shrink-0" />}
+                      <span className={cn(
+                        'ml-auto px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0',
+                        artist.availability === 'available' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                      )}>
+                        {artist.availability === 'available' ? '🟢 Available' : '🟡 Busy'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 mt-1">
+                      <MapPin size={12} className="text-stone-400" />
+                      <span className="text-xs text-stone-400">{artist.location}</span>
+                    </div>
+                    <p className="text-xs text-stone-500 mt-1.5 line-clamp-2">{artist.bio}</p>
+                    <div className="flex items-center gap-3 mt-2">
+                      <div className="flex items-center gap-0.5">
+                        <Star size={13} className="text-amber-500 fill-amber-500" />
+                        <span className="text-sm font-semibold text-stone-700">{artist.rating}</span>
+                        <span className="text-[11px] text-stone-400">({artist.reviewCount})</span>
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        <Clock size={12} className="text-stone-400" />
+                        <span className="text-xs text-stone-400">{artist.responseTime}</span>
+                      </div>
+                      <span className="text-xs font-semibold text-amber-700">₹{artist.priceRange.min}+</span>
+                    </div>
+                    <div className="flex gap-1.5 mt-2 flex-wrap">
+                      {artist.skills.map(skill => (
+                        <span key={skill} className="px-2 py-0.5 bg-stone-100 text-stone-600 rounded-full text-[10px] font-medium">{skill}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {filtered.length === 0 && (
+            <div className="text-center py-16">
+              <span className="text-5xl">🔍</span>
+              <h3 className="text-lg font-semibold text-stone-700 mt-4">No artists found</h3>
+              <p className="text-sm text-stone-400 mt-1">Try adjusting your search or filters</p>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -18,63 +18,47 @@ import { NotificationsPage } from '@/pages/NotificationsPage';
 import ArtistSetupPage from '@/pages/ArtistSetupPage';
 import MyArtistProfilePage from '@/pages/MyArtistProfilePage';
 import { Palette, Loader2 } from 'lucide-react';
-
-function SplashScreen() {
-  return (
-    <div className="h-screen w-full bg-gradient-to-br from-amber-700 via-amber-800 to-orange-900 flex flex-col items-center justify-center">
-      <div className="animate-bounce-in flex flex-col items-center">
-        <div className="w-24 h-24 rounded-3xl bg-white/15 backdrop-blur-sm flex items-center justify-center shadow-2xl mb-6">
-          <Palette className="text-white" size={48} />
-        </div>
-        <h1 className="text-4xl font-extrabold text-white tracking-tight">HunarHub</h1>
-        <p className="text-amber-200/80 mt-2 text-sm tracking-widest uppercase">Custom Art Marketplace</p>
-        <div className="mt-10 flex gap-2.5">
-          <div className="w-2.5 h-2.5 bg-white/60 rounded-full animate-pulse-soft" style={{ animationDelay: '0ms' }} />
-          <div className="w-2.5 h-2.5 bg-white/60 rounded-full animate-pulse-soft" style={{ animationDelay: '300ms' }} />
-          <div className="w-2.5 h-2.5 bg-white/60 rounded-full animate-pulse-soft" style={{ animationDelay: '600ms' }} />
-        </div>
-      </div>
-    </div>
-  );
-}
+import AdminLoginPage from '@/pages/AdminLoginPage'
+import AdminDashboardPage from '@/pages/AdminDashboardPage'
 
 function LoadingScreen() {
   return (
-    <div className="h-screen w-full bg-stone-50 flex flex-col items-center justify-center">
-      <Loader2 size={32} className="animate-spin text-amber-600 mb-4" />
-      <p className="text-sm text-stone-500">Restoring session...</p>
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-16 h-16 bg-gradient-to-br from-amber-600 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <span className="text-2xl">🎨</span>
+        </div>
+        <Loader2 className="w-6 h-6 animate-spin text-amber-600 mx-auto mb-2" />
+        <p className="text-gray-500 text-sm">Loading HunarHub...</p>
+      </div>
     </div>
-  );
+  )
 }
 
-function AppRoutes() {
-  const { isLoggedIn, isLoading } = useApp();
+function AppLayout() {
+  const { isLoggedIn, isLoading } = useApp()
 
-  // Show loading while checking session
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
+  if (isLoading) return <LoadingScreen />
 
   if (!isLoggedIn) {
     return (
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="/admin" element={<AdminLoginPage />} />
+        <Route path="/admin/dashboard" element={<AdminLoginPage />} />
+        <Route path="*" element={<LoginPage />} />
       </Routes>
-    );
+    )
   }
 
   return (
-    <div className="flex h-screen bg-stone-50">
-      {/* Desktop Sidebar */}
+    <div className="min-h-screen bg-gray-50 flex">
       <Sidebar />
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-h-screen md:ml-0">
         <TopNav />
-        <main className="flex-1 overflow-y-auto custom-scrollbar">
+        <main className="flex-1 overflow-y-auto">
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/home" element={<HomePage />} />
             <Route path="/explore" element={<ExplorePage />} />
             <Route path="/artist/:id" element={<ArtistProfilePage />} />
             <Route path="/request/:artistId" element={<RequestPage />} />
@@ -87,32 +71,23 @@ function AppRoutes() {
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/become-artist" element={<ArtistSetupPage />} />
             <Route path="/my-artist-profile" element={<MyArtistProfilePage />} />
-            <Route path="/login" element={<Navigate to="/" replace />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="/admin" element={<AdminLoginPage />} />
+            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+            <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>
-        {/* Mobile Bottom Nav */}
         <MobileNav />
       </div>
     </div>
-  );
+  )
 }
 
 export function App() {
-  const [showSplash, setShowSplash] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 2000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (showSplash) return <SplashScreen />;
-
   return (
     <BrowserRouter basename={import.meta.env.DEV ? '/' : '/hunarhub'}>
       <AppProvider>
-        <AppRoutes />
+        <AppLayout />
       </AppProvider>
     </BrowserRouter>
-  );
+  )
 }

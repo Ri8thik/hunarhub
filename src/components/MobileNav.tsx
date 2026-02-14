@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Search, MessageSquare, ShoppingBag, User, Wallet } from 'lucide-react';
+import { Home, Search, MessageSquare, ShoppingBag, User, Wallet, Palette } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { cn } from '@/utils/cn';
 
@@ -12,11 +12,11 @@ const customerTabs = [
 ];
 
 const artistTabs = [
-  { path: '/', icon: Home, label: 'Home' },
+  { path: '/', icon: Home, label: 'Dashboard' },
   { path: '/orders', icon: ShoppingBag, label: 'Orders' },
   { path: '/chat', icon: MessageSquare, label: 'Chat' },
   { path: '/earnings', icon: Wallet, label: 'Earnings' },
-  { path: '/profile', icon: User, label: 'Profile' },
+  { path: '/my-artist-profile', icon: Palette, label: 'My Profile' },
 ];
 
 export function MobileNav() {

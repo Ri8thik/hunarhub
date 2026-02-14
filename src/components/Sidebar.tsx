@@ -13,10 +13,11 @@ const customerLinks = [
 
 const artistLinks = [
   { path: '/', icon: Home, label: 'Dashboard' },
+  { path: '/my-artist-profile', icon: Palette, label: 'My Artist Profile' },
   { path: '/orders', icon: ShoppingBag, label: 'Orders' },
   { path: '/chat', icon: MessageSquare, label: 'Messages' },
   { path: '/earnings', icon: Wallet, label: 'Earnings' },
-  { path: '/profile', icon: User, label: 'Profile' },
+  { path: '/profile', icon: User, label: 'Settings' },
 ];
 
 export function Sidebar() {

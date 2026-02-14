@@ -115,6 +115,25 @@ export async function getFeaturedArtists(): Promise<Artist[]> {
   }
 }
 
+export async function addArtist(artistData: Record<string, unknown>): Promise<void> {
+  if (!isFirebaseConfigured()) {
+    console.log('[Firestore] Firebase not configured');
+    return;
+  }
+  try {
+    const artistId = artistData.id as string || `artist-${Date.now()}`;
+    await setDoc(doc(db, 'artists', artistId), {
+      ...artistData,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    console.log('[Firestore] Artist profile created:', artistId);
+  } catch (error) {
+    console.error('[Firestore] Error creating artist profile:', error);
+    throw error;
+  }
+}
+
 export async function getArtistById(artistId: string): Promise<Artist | null> {
   if (!isFirebaseConfigured()) return null;
   try {

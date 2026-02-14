@@ -1,337 +1,273 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Palette, MapPin, IndianRupee, FileText, Plus, X, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
-import { useApp } from '@/context/AppContext';
-import { cn } from '@/utils/cn';
-import { isFirebaseConfigured } from '@/config/firebase';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { getIndianStates, getCitiesByState } from '@/services/locationService'
+import ImageUploader from '@/components/ImageUploader'
+import { useApp } from '@/context/AppContext'
+import { addArtist } from '@/services/firestoreService'
+import { ArrowLeft, Save, Loader2, CheckCircle } from 'lucide-react'
 
-const availableSkills = [
-  'Sketch', 'Portrait', 'Painting', 'Oil Painting', 'Watercolor',
-  'Digital Art', 'Caricature', 'Mandala', 'Calligraphy',
-  'Home Decor', 'Handmade Crafts', 'Sculpture', 'Pottery',
-  'Embroidery', 'Mehndi Art', 'Rangoli', 'Wall Art',
-  'Gift Items', 'Jewelry Making', 'Woodwork'
-];
+const skillOptions = [
+  'Sketch', 'Pencil Drawing', 'Charcoal Art', 'Portrait', 'Caricature',
+  'Oil Painting', 'Watercolor', 'Acrylic Painting', 'Digital Art', 'Vector Art',
+  'Calligraphy', 'Mandala Art', 'Rangoli Design', 'Mehndi Design', 'Wall Mural',
+  'Clay Sculpture', 'Wood Carving', 'Paper Craft', 'Handmade Jewelry', 'Embroidery'
+]
 
-export function ArtistSetupPage() {
-  const navigate = useNavigate();
-  const { currentUserId, currentUserName, currentUserEmail, switchRole, refreshArtists } = useApp();
+export default function ArtistSetupPage() {
+  const navigate = useNavigate()
+  const { currentUserId, currentUserName, currentUserEmail, becomeArtist } = useApp()
+  const [name, setName] = useState(currentUserName || '')
+  const [bio, setBio] = useState('')
+  const [selectedState, setSelectedState] = useState('')
+  const [selectedCity, setSelectedCity] = useState('')
+  const [cities, setCities] = useState<string[]>([])
+  const [cityLoading, setCityLoading] = useState(false)
+  const [citySearch, setCitySearch] = useState('')
+  const [skills, setSkills] = useState<string[]>([])
+  const [priceStart, setPriceStart] = useState('')
+  const [portfolioImages, setPortfolioImages] = useState<string[]>([])
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
 
-  const [displayName, setDisplayName] = useState(currentUserName || '');
-  const [bio, setBio] = useState('');
-  const [location, setLocation] = useState('');
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [startingPrice, setStartingPrice] = useState('');
-  const [portfolioUrls, setPortfolioUrls] = useState<string[]>(['']);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const handleStateChange = async (state: string) => {
+    setSelectedState(state)
+    setSelectedCity('')
+    setCitySearch('')
+    setCityLoading(true)
+    const cityList = await getCitiesByState(state)
+    setCities(cityList)
+    setCityLoading(false)
+  }
+
+  const filteredCities = citySearch
+    ? cities.filter(c => c.toLowerCase().includes(citySearch.toLowerCase()))
+    : cities
 
   const toggleSkill = (skill: string) => {
-    setSelectedSkills(prev =>
-      prev.includes(skill)
-        ? prev.filter(s => s !== skill)
-        : [...prev, skill]
-    );
-  };
+    setSkills(prev =>
+      prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]
+    )
+  }
 
-  const addPortfolioUrl = () => {
-    setPortfolioUrls(prev => [...prev, '']);
-  };
+  const handleSubmit = async () => {
+    if (!name.trim()) { setError('Please enter your name'); return }
+    if (!selectedState) { setError('Please select your state'); return }
+    if (skills.length === 0) { setError('Please select at least one skill'); return }
+    if (!priceStart) { setError('Please enter your starting price'); return }
 
-  const updatePortfolioUrl = (index: number, value: string) => {
-    setPortfolioUrls(prev => prev.map((url, i) => i === index ? value : url));
-  };
-
-  const removePortfolioUrl = (index: number) => {
-    setPortfolioUrls(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    // Validation
-    if (!displayName.trim()) { setError('Please enter your display name'); return; }
-    if (!bio.trim()) { setError('Please write a short bio about yourself'); return; }
-    if (!location.trim()) { setError('Please enter your city/location'); return; }
-    if (selectedSkills.length === 0) { setError('Please select at least one skill'); return; }
-    if (!startingPrice || Number(startingPrice) <= 0) { setError('Please enter a valid starting price'); return; }
-
-    setLoading(true);
+    setSaving(true)
+    setError('')
 
     try {
-      const portfolioImages = portfolioUrls.filter(url => url.trim() !== '');
+      const location = selectedCity ? `${selectedCity}, ${selectedState}` : selectedState
 
-      const artistProfile = {
-        id: currentUserId,
-        userId: currentUserId,
-        name: displayName.trim(),
+      const artistData = {
+        id: currentUserId || 'demo-artist',
+        userId: currentUserId || 'demo-artist',
+        name: name.trim(),
         email: currentUserEmail || '',
         bio: bio.trim(),
-        location: location.trim(),
-        skills: selectedSkills,
-        priceRange: { min: Number(startingPrice), max: Number(startingPrice) * 3 },
+        location,
+        skills,
+        priceRange: { min: parseInt(priceStart) || 500, max: (parseInt(priceStart) || 500) * 5 },
         rating: 0,
         reviewCount: 0,
         completedOrders: 0,
-        earnings: 0,
-        portfolio: portfolioImages.length > 0 ? portfolioImages : [
-          'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=400',
-        ],
+        portfolio: portfolioImages.map((img, index) => ({
+          id: `portfolio-${index + 1}`,
+          title: `Artwork ${index + 1}`,
+          imageUrl: img,
+          category: skills[0] || 'Art'
+        })),
+        availability: 'available' as const,
         verified: false,
-        available: true,
         joinedDate: new Date().toISOString().split('T')[0],
-        responseTime: '< 24 hours',
-        deliveryTime: '3-7 days',
-        createdAt: new Date().toISOString(),
-      };
-
-      if (isFirebaseConfigured()) {
-        // Save to Firestore artists collection
-        await setDoc(doc(db!, 'artists', currentUserId), artistProfile);
-
-        // Also update user document with isArtist flag
-        await setDoc(doc(db!, 'users', currentUserId), {
-          isArtist: true,
-          artistProfileId: currentUserId,
-        }, { merge: true });
+        responseTime: '< 2 hours'
       }
 
-      // Switch role to artist
-      switchRole('artist');
+      await addArtist(artistData)
+      becomeArtist()
+      setSaved(true)
 
-      // Refresh artists list
-      await refreshArtists();
-
-      setSuccess(true);
-
-      // Navigate to profile after 2 seconds
       setTimeout(() => {
-        navigate('/profile');
-      }, 2000);
-
+        navigate('/my-artist-profile')
+      }, 2000)
     } catch (err) {
-      console.error('Error creating artist profile:', err);
-      setError('Failed to create artist profile. Please try again.');
+      setError('Failed to save profile. Please try again.')
+      console.error(err)
     } finally {
-      setLoading(false);
+      setSaving(false)
     }
-  };
+  }
 
-  if (success) {
+  if (saved) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center p-6">
-        <div className="text-center animate-scale-in">
-          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 size={48} className="text-green-600" />
+      <div className="h-full flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-50">
+        <div className="text-center p-8">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-10 h-10 text-green-600" />
           </div>
-          <h2 className="text-2xl font-bold text-stone-800 mb-2">Welcome, Artist! 🎨</h2>
-          <p className="text-stone-500 mb-2">Your artist profile has been created successfully!</p>
-          <p className="text-sm text-stone-400">Other customers can now find you and send custom art requests.</p>
-          <div className="mt-6 flex items-center justify-center gap-2 text-amber-600">
-            <Loader2 size={16} className="animate-spin" />
-            <span className="text-sm">Redirecting to your profile...</span>
-          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile Created!</h2>
+          <p className="text-gray-600">Your artist profile is now live. Customers can find you!</p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="p-4 lg:p-8 max-w-3xl mx-auto animate-fade-in">
+    <div className="h-full overflow-y-auto bg-gray-50">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)}
-          className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center hover:bg-stone-200 transition-colors">
-          <ArrowLeft size={20} className="text-stone-600" />
-        </button>
-        <div>
-          <h1 className="text-xl lg:text-2xl font-bold text-stone-800">Become an Artist</h1>
-          <p className="text-sm text-stone-400">Create your artist profile to start receiving orders</p>
+      <div className="bg-gradient-to-r from-amber-600 to-orange-600 text-white p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <button onClick={() => navigate(-1)} className="p-2 hover:bg-white/20 rounded-lg">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h1 className="text-xl font-bold">Become an Artist</h1>
         </div>
+        <p className="text-amber-100 text-sm">Create your professional profile and start receiving custom art requests</p>
       </div>
 
-      {/* Info Banner */}
-      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 mb-6">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
-            <Sparkles size={20} className="text-amber-600" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-amber-800 mb-1">What happens next?</h3>
-            <ul className="text-sm text-amber-700 space-y-1">
-              <li>✅ Your profile will be listed for customers to discover</li>
-              <li>✅ Customers can send you custom art requests</li>
-              <li>✅ You can accept/reject orders and chat with customers</li>
-              <li>✅ You can switch between Customer & Artist mode anytime</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="max-w-2xl mx-auto p-6 space-y-6">
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700 flex items-center gap-2">
-            <span>❌</span> {error}
-          </div>
+          <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm">{error}</div>
         )}
 
         {/* Display Name */}
         <div>
-          <label className="text-sm font-semibold text-stone-700 mb-2 block">
-            <Palette size={16} className="inline mr-1.5 text-amber-600" />
-            Display Name *
-          </label>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Display Name *</label>
           <input
             type="text"
-            value={displayName}
-            onChange={e => setDisplayName(e.target.value)}
-            placeholder="How customers will see your name"
-            className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Your artist name"
+            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
           />
         </div>
 
         {/* Bio */}
         <div>
-          <label className="text-sm font-semibold text-stone-700 mb-2 block">
-            <FileText size={16} className="inline mr-1.5 text-amber-600" />
-            About You *
-          </label>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">About You</label>
           <textarea
             value={bio}
             onChange={e => setBio(e.target.value)}
-            placeholder="Tell customers about your art journey, experience, and what makes your work special..."
+            placeholder="Tell customers about your art style, experience, and what makes you unique..."
             rows={4}
-            className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
           />
-          <p className="text-xs text-stone-400 mt-1">{bio.length}/500 characters</p>
         </div>
 
-        {/* Location */}
+        {/* State */}
         <div>
-          <label className="text-sm font-semibold text-stone-700 mb-2 block">
-            <MapPin size={16} className="inline mr-1.5 text-amber-600" />
-            City / Location *
-          </label>
-          <input
-            type="text"
-            value={location}
-            onChange={e => setLocation(e.target.value)}
-            placeholder="e.g. Mumbai, Delhi, Jaipur"
-            className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-          />
+          <label className="block text-sm font-semibold text-gray-700 mb-2">State *</label>
+          <select
+            value={selectedState}
+            onChange={e => handleStateChange(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white"
+          >
+            <option value="">Select State</option>
+            {getIndianStates().map(state => (
+              <option key={state} value={state}>{state}</option>
+            ))}
+          </select>
         </div>
+
+        {/* City */}
+        {selectedState && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">City</label>
+            {cityLoading ? (
+              <div className="flex items-center gap-2 text-gray-500 py-3">
+                <Loader2 className="w-4 h-4 animate-spin" /> Loading cities...
+              </div>
+            ) : (
+              <>
+                <input
+                  type="text"
+                  value={citySearch}
+                  onChange={e => setCitySearch(e.target.value)}
+                  placeholder="Search city..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 mb-2"
+                />
+                <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-xl">
+                  {filteredCities.length > 0 ? filteredCities.map(city => (
+                    <button
+                      key={city}
+                      onClick={() => { setSelectedCity(city); setCitySearch(city) }}
+                      className={`w-full text-left px-4 py-2 hover:bg-amber-50 text-sm ${selectedCity === city ? 'bg-amber-100 font-semibold text-amber-800' : 'text-gray-700'}`}
+                    >
+                      {city}
+                    </button>
+                  )) : (
+                    <p className="text-gray-400 text-sm p-3">No cities found</p>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Skills */}
         <div>
-          <label className="text-sm font-semibold text-stone-700 mb-2 block">
-            🎯 Your Skills * <span className="text-xs font-normal text-stone-400">(select all that apply)</span>
-          </label>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Skills * (select multiple)</label>
           <div className="flex flex-wrap gap-2">
-            {availableSkills.map(skill => (
+            {skillOptions.map(skill => (
               <button
                 key={skill}
-                type="button"
                 onClick={() => toggleSkill(skill)}
-                className={cn(
-                  'px-3 py-2 rounded-xl text-xs font-medium border transition-all',
-                  selectedSkills.includes(skill)
-                    ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
-                    : 'bg-white text-stone-600 border-stone-200 hover:border-amber-300 hover:text-amber-700'
-                )}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                  skills.includes(skill)
+                    ? 'bg-amber-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
               >
-                {selectedSkills.includes(skill) && '✓ '}{skill}
+                {skill}
               </button>
             ))}
           </div>
-          {selectedSkills.length > 0 && (
-            <p className="text-xs text-amber-600 mt-2 font-medium">
-              {selectedSkills.length} skill{selectedSkills.length > 1 ? 's' : ''} selected
-            </p>
+          {skills.length > 0 && (
+            <p className="text-xs text-amber-600 mt-2">{skills.length} skills selected</p>
           )}
         </div>
 
         {/* Starting Price */}
         <div>
-          <label className="text-sm font-semibold text-stone-700 mb-2 block">
-            <IndianRupee size={16} className="inline mr-1.5 text-amber-600" />
-            Starting Price (₹) *
-          </label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-semibold">₹</span>
-            <input
-              type="number"
-              value={startingPrice}
-              onChange={e => setStartingPrice(e.target.value)}
-              placeholder="500"
-              min="100"
-              className="w-full px-4 py-3 pl-10 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-            />
-          </div>
-          <p className="text-xs text-stone-400 mt-1">This is the minimum price for your work. You can set specific prices per order.</p>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Starting Price (₹) *</label>
+          <input
+            type="number"
+            value={priceStart}
+            onChange={e => setPriceStart(e.target.value)}
+            placeholder="500"
+            min="100"
+            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+          />
+          <p className="text-xs text-gray-500 mt-1">Minimum price for a custom art piece</p>
         </div>
 
-        {/* Portfolio Links */}
+        {/* Portfolio - Image Uploader */}
         <div>
-          <label className="text-sm font-semibold text-stone-700 mb-2 block">
-            🖼️ Portfolio Images <span className="text-xs font-normal text-stone-400">(paste image URLs)</span>
-          </label>
-          <div className="space-y-2">
-            {portfolioUrls.map((url, index) => (
-              <div key={index} className="flex gap-2">
-                <input
-                  type="url"
-                  value={url}
-                  onChange={e => updatePortfolioUrl(index, e.target.value)}
-                  placeholder="https://example.com/your-art-image.jpg"
-                  className="flex-1 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-                {portfolioUrls.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removePortfolioUrl(index)}
-                    className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-500 hover:bg-red-100 transition-colors self-center"
-                  >
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={addPortfolioUrl}
-            className="mt-2 flex items-center gap-1.5 text-xs text-amber-600 font-semibold hover:text-amber-700"
-          >
-            <Plus size={14} /> Add another image
-          </button>
-          <p className="text-xs text-stone-400 mt-1">
-            Tip: Upload your art images to Imgur or Google Drive and paste the direct link here
-          </p>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Portfolio Images</label>
+          <ImageUploader
+            images={portfolioImages}
+            onChange={setPortfolioImages}
+            maxImages={10}
+          />
+          <p className="text-xs text-gray-500 mt-1">Upload up to 10 images. Max 3MB each.</p>
         </div>
 
-        {/* Submit Button */}
-        <div className="pt-4 border-t border-stone-200">
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-amber-200/60 hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <><Loader2 size={18} className="animate-spin" /> Creating your profile...</>
-            ) : (
-              <><Palette size={18} /> Create Artist Profile & Go Live 🚀</>
-            )}
-          </button>
-          <p className="text-xs text-stone-400 text-center mt-3">
-            You can edit your profile later from the Profile page
-          </p>
-        </div>
-      </form>
+        {/* Submit */}
+        <button
+          onClick={handleSubmit}
+          disabled={saving}
+          className="w-full py-4 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {saving ? (
+            <><Loader2 className="w-5 h-5 animate-spin" /> Creating Profile...</>
+          ) : (
+            <><Save className="w-5 h-5" /> Create Artist Profile</>
+          )}
+        </button>
+      </div>
     </div>
-  );
+  )
 }

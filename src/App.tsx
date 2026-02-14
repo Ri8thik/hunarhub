@@ -7,7 +7,7 @@ import { MobileNav } from '@/components/MobileNav';
 import { LoginPage } from '@/pages/LoginPage';
 import { HomePage } from '@/pages/HomePage';
 import { ExplorePage } from '@/pages/ExplorePage';
-import { ArtistProfilePage } from '@/pages/ArtistProfilePage';
+import ArtistProfilePage from '@/pages/ArtistProfilePage';
 import { RequestPage } from '@/pages/RequestPage';
 import { OrdersPage } from '@/pages/OrdersPage';
 import { OrderDetailPage } from '@/pages/OrderDetailPage';

@@ -1,260 +1,327 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Star, Clock, BadgeCheck, Share2, Heart, MessageSquare, ShoppingBag, Loader2 } from 'lucide-react';
-import { getPortfolioColor } from '@/utils/helpers';
-import { getArtistById, getArtistReviews } from '@/services/firestoreService';
-import { Avatar } from '@/components/Avatar';
-import { StarRating } from '@/components/StarRating';
-import { cn } from '@/utils/cn';
-import { type Artist, type Review } from '@/types';
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useApp } from '@/context/AppContext'
+import { getArtistById, getArtistReviews } from '@/services/firestoreService'
+import { ArrowLeft, Star, MapPin, Clock, CheckCircle, MessageCircle, Loader2, X } from 'lucide-react'
 
-type Tab = 'portfolio' | 'reviews' | 'about';
+interface Review {
+  id: string
+  customerName?: string
+  rating: number
+  comment: string
+  createdAt?: string
+}
 
-export function ArtistProfilePage() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<Tab>('portfolio');
-  const [liked, setLiked] = useState(false);
-  const [artist, setArtist] = useState<Artist | null>(null);
-  const [artistReviews, setArtistReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
+interface PortfolioItem {
+  id: string
+  title: string
+  imageUrl: string
+  category: string
+}
+
+interface ArtistData {
+  id: string
+  name: string
+  email?: string
+  bio?: string
+  location?: string
+  skills: string[]
+  priceRange?: { min: number; max: number }
+  rating: number
+  reviewCount?: number
+  completedOrders?: number
+  portfolio: PortfolioItem[]
+  availability?: string
+  verified?: boolean
+  joinedDate?: string
+  responseTime?: string
+}
+
+export default function ArtistProfilePage() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const { userRole } = useApp()
+  const [artist, setArtist] = useState<ArtistData | null>(null)
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'portfolio' | 'reviews'>('portfolio')
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
 
   useEffect(() => {
-    async function fetchData() {
-      if (!id) return;
-      setLoading(true);
+    const fetchArtist = async () => {
+      if (!id) return
       try {
-        const [artistData, reviewsData] = await Promise.all([
-          getArtistById(id),
-          getArtistReviews(id),
-        ]);
-        setArtist(artistData);
-        setArtistReviews(reviewsData);
-      } catch (error) {
-        console.error('Error fetching artist:', error);
+        const data = await getArtistById(id)
+        console.log('Artist data from Firestore:', data)
+        if (data) {
+          setArtist(data as unknown as ArtistData)
+          console.log('Portfolio items:', (data as any).portfolio?.length || 0)
+          const rev = await getArtistReviews(id)
+          setReviews(rev as unknown as Review[])
+        }
+      } catch (err) {
+        console.error('Error fetching artist:', err)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
     }
-    fetchData();
-  }, [id]);
+    fetchArtist()
+  }, [id])
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 size={32} className="animate-spin text-amber-600" />
-        <span className="ml-3 text-stone-500">Loading artist profile...</span>
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 animate-spin text-amber-600 mx-auto mb-3" />
+          <p className="text-gray-500">Loading artist profile...</p>
+        </div>
       </div>
-    );
+    )
   }
 
   if (!artist) {
-    return <div className="flex items-center justify-center h-64"><p className="text-stone-500">Artist not found</p></div>;
+    return (
+      <div className="h-full flex items-center justify-center p-6">
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">Artist not found</p>
+          <button onClick={() => navigate(-1)} className="px-6 py-3 bg-amber-600 text-white rounded-xl font-semibold">
+            Go Back
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-4 lg:p-8 animate-fade-in">
-      {/* Back Button */}
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-stone-500 hover:text-stone-700 mb-4 transition-colors">
-        <ArrowLeft size={18} />
-        <span className="text-sm font-medium">Back</span>
-      </button>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Artist Info */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden sticky top-4">
-            {/* Cover */}
-            <div className="h-32 bg-gradient-to-br from-amber-300 via-orange-300 to-rose-300 relative">
-              <div className="absolute top-3 right-3 flex gap-2">
-                <button onClick={() => setLiked(!liked)} className="w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-colors">
-                  <Heart size={16} className={cn(liked ? 'fill-red-500 text-red-500' : 'text-stone-600')} />
-                </button>
-                <button className="w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-colors">
-                  <Share2 size={16} className="text-stone-600" />
-                </button>
-              </div>
-              <div className="absolute -bottom-10 left-1/2 -translate-x-1/2">
-                <div className="relative">
-                  <Avatar name={artist.name} size="xl" className="ring-4 ring-white" />
-                  {artist.verified && (
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center ring-2 ring-white">
-                      <BadgeCheck size={14} className="text-white" />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-14 px-5 pb-5 text-center">
-              <h1 className="text-xl font-bold text-stone-800">{artist.name}</h1>
-              <div className="flex items-center justify-center gap-1 mt-1">
-                <MapPin size={13} className="text-stone-400" />
-                <span className="text-sm text-stone-500">{artist.location}</span>
-              </div>
-
-              <div className="flex items-center justify-center gap-4 mt-3">
-                <div className="text-center">
-                  <div className="flex items-center gap-0.5 justify-center">
-                    <Star size={14} className="text-amber-500 fill-amber-500" />
-                    <span className="font-bold text-stone-800">{artist.rating}</span>
-                  </div>
-                  <span className="text-[10px] text-stone-400">{artist.reviewCount} reviews</span>
-                </div>
-                <div className="w-px h-8 bg-stone-200" />
-                <div className="text-center">
-                  <div className="flex items-center gap-0.5 justify-center">
-                    <ShoppingBag size={14} className="text-stone-500" />
-                    <span className="font-bold text-stone-800">{artist.completedOrders}</span>
-                  </div>
-                  <span className="text-[10px] text-stone-400">Orders</span>
-                </div>
-                <div className="w-px h-8 bg-stone-200" />
-                <div className="text-center">
-                  <div className="flex items-center gap-0.5 justify-center">
-                    <Clock size={14} className="text-stone-500" />
-                    <span className="font-bold text-stone-800 text-sm">{artist.responseTime}</span>
-                  </div>
-                  <span className="text-[10px] text-stone-400">Response</span>
-                </div>
-              </div>
-
-              <span className={cn(
-                'inline-flex items-center mt-3 px-3 py-1 rounded-full text-xs font-medium',
-                artist.availability === 'available' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-              )}>
-                {artist.availability === 'available' ? '🟢 Available' : '🟡 Busy'}
-              </span>
-
-              <div className="flex gap-1.5 mt-3 flex-wrap justify-center">
-                {artist.skills.map(skill => (
-                  <span key={skill} className="px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium border border-amber-200">
-                    {skill}
-                  </span>
-                ))}
-              </div>
-
-              <div className="mt-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-3 border border-amber-100">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] text-stone-500">From</span>
-                    <p className="text-lg font-bold text-amber-700">₹{artist.priceRange.min.toLocaleString('en-IN')}</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] text-stone-500">Up to</span>
-                    <p className="text-lg font-bold text-stone-700">₹{artist.priceRange.max.toLocaleString('en-IN')}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-2 mt-4">
-                <button onClick={() => navigate('/chat')}
-                  className="flex-1 py-3 border-2 border-amber-600 text-amber-600 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-amber-50 transition-colors">
-                  <MessageSquare size={16} /> Chat
-                </button>
-                <button onClick={() => navigate(`/request/${artist.id}`)}
-                  className="flex-1 py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-semibold text-sm hover:shadow-lg transition-all hover:-translate-y-0.5">
-                  🎨 Request Art
-                </button>
-              </div>
-            </div>
-          </div>
+    <div className="h-full overflow-y-auto bg-gray-50">
+      {selectedImage && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
+          <button className="absolute top-4 right-4 text-white p-2 hover:bg-white/20 rounded-full" onClick={() => setSelectedImage(null)}>
+            <X className="w-6 h-6" />
+          </button>
+          <img src={selectedImage} alt="Portfolio" className="max-w-full max-h-full object-contain rounded-lg" onClick={e => e.stopPropagation()} />
         </div>
+      )}
 
-        {/* Right Column - Tabs */}
-        <div className="lg:col-span-2">
-          {/* Tabs */}
-          <div className="flex bg-white rounded-xl p-1 mb-4 border border-stone-200 shadow-sm">
-            {(['portfolio', 'reviews', 'about'] as Tab[]).map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
-                className={cn(
-                  'flex-1 py-2.5 rounded-lg text-sm font-medium capitalize transition-all',
-                  activeTab === tab ? 'bg-amber-600 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700'
-                )}>
-                {tab === 'portfolio' ? `📁 Portfolio (${artist.portfolio.length})` :
-                 tab === 'reviews' ? `⭐ Reviews (${artistReviews.length})` : '📋 About'}
-              </button>
-            ))}
+      <div className="bg-gradient-to-r from-amber-600 to-orange-600 text-white p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <button onClick={() => navigate(-1)} className="p-2 hover:bg-white/20 rounded-lg">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h1 className="text-xl font-bold">Artist Profile</h1>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center text-3xl font-bold">
+            {artist.name.charAt(0).toUpperCase()}
           </div>
-
-          {/* Tab Content */}
-          <div className="animate-fade-in">
-            {activeTab === 'portfolio' && (
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                {artist.portfolio.map((item, idx) => (
-                  <div key={item.id}
-                    className={cn(
-                      'aspect-square rounded-2xl bg-gradient-to-br flex items-end p-3 relative overflow-hidden cursor-pointer hover-lift',
-                      getPortfolioColor(idx)
-                    )}>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                    <div className="relative z-10">
-                      <h4 className="text-white text-sm font-semibold">{item.title}</h4>
-                      <span className="text-white/70 text-xs">{item.category}</span>
-                    </div>
-                    <div className="absolute top-3 right-3 z-10">
-                      <span className="text-3xl opacity-60">
-                        {item.category === 'Portrait' ? '🎨' : item.category === 'Sketch' ? '✏️' : item.category === 'Painting' ? '🖼️' :
-                         item.category === 'Digital Art' ? '💻' : item.category === 'Calligraphy' ? '🖋️' : item.category === 'Sculpture' ? '🗿' :
-                         item.category === 'Home Decor' ? '🏠' : '🧶'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-bold">{artist.name}</h2>
+              {artist.verified && <CheckCircle className="w-5 h-5 text-amber-200" />}
+            </div>
+            {artist.location && (
+              <p className="flex items-center gap-1 text-amber-100 mt-1">
+                <MapPin className="w-4 h-4" /> {artist.location}
+              </p>
             )}
-
-            {activeTab === 'reviews' && (
-              <div className="space-y-3">
-                {artistReviews.length === 0 ? (
-                  <div className="text-center py-12 bg-white rounded-2xl border border-stone-100">
-                    <span className="text-4xl">⭐</span>
-                    <p className="text-stone-400 mt-3">No reviews yet</p>
-                  </div>
-                ) : artistReviews.map(review => (
-                  <div key={review.id} className="bg-white rounded-xl p-4 shadow-sm border border-stone-100">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Avatar name={review.customerName} size="sm" />
-                      <div className="flex-1">
-                        <h4 className="text-sm font-semibold text-stone-800">{review.customerName}</h4>
-                        <span className="text-xs text-stone-400">{review.date}</span>
-                      </div>
-                    </div>
-                    <StarRating rating={review.rating} size={14} showValue={false} />
-                    <p className="text-sm text-stone-600 mt-2 leading-relaxed">{review.comment}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {activeTab === 'about' && (
-              <div className="space-y-4">
-                <div className="bg-white rounded-xl p-5 shadow-sm border border-stone-100">
-                  <h3 className="font-semibold text-stone-800 mb-2">About</h3>
-                  <p className="text-sm text-stone-600 leading-relaxed">{artist.bio}</p>
-                </div>
-                <div className="bg-white rounded-xl p-5 shadow-sm border border-stone-100">
-                  <h3 className="font-semibold text-stone-800 mb-3">Details</h3>
-                  <div className="space-y-3">
-                    {[
-                      ['Member since', artist.joinedDate],
-                      ['Response time', artist.responseTime],
-                      ['Orders completed', String(artist.completedOrders)],
-                      ['Phone', artist.phone],
-                      ['Email', artist.email],
-                    ].map(([label, value]) => (
-                      <div key={label} className="flex justify-between items-center">
-                        <span className="text-sm text-stone-500">{label}</span>
-                        <span className="text-sm text-stone-700 font-medium">{value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
+            <div className="flex items-center gap-3 mt-2">
+              <span className="flex items-center gap-1 text-sm">
+                <Star className="w-4 h-4 fill-amber-300 text-amber-300" />
+                {artist.rating?.toFixed(1) || '0.0'}
+              </span>
+              {artist.responseTime && (
+                <span className="flex items-center gap-1 text-sm text-amber-200">
+                  <Clock className="w-3 h-3" /> {artist.responseTime}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
+
+      <div className="grid grid-cols-4 bg-white border-b">
+        <div className="p-4 text-center">
+          <p className="text-xl font-bold text-gray-900">{artist.completedOrders || 0}</p>
+          <p className="text-xs text-gray-500">Orders</p>
+        </div>
+        <div className="p-4 text-center border-l">
+          <p className="text-xl font-bold text-amber-600 flex items-center justify-center gap-1">
+            <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+            {artist.rating?.toFixed(1) || '0.0'}
+          </p>
+          <p className="text-xs text-gray-500">Rating</p>
+        </div>
+        <div className="p-4 text-center border-l">
+          <p className="text-xl font-bold text-gray-900">{artist.reviewCount || reviews.length}</p>
+          <p className="text-xs text-gray-500">Reviews</p>
+        </div>
+        <div className="p-4 text-center border-l">
+          <p className="text-xl font-bold text-gray-900">{artist.portfolio?.length || 0}</p>
+          <p className="text-xs text-gray-500">Portfolio</p>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
+        {artist.bio && (
+          <div className="bg-white rounded-xl p-5 shadow-sm">
+            <h3 className="font-bold text-gray-900 mb-2">About</h3>
+            <p className="text-gray-600 leading-relaxed">{artist.bio}</p>
+          </div>
+        )}
+
+        {artist.skills && artist.skills.length > 0 && (
+          <div className="bg-white rounded-xl p-5 shadow-sm">
+            <h3 className="font-bold text-gray-900 mb-3">Skills</h3>
+            <div className="flex flex-wrap gap-2">
+              {artist.skills.map((skill, i) => (
+                <span key={i} className="px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full text-sm font-medium border border-amber-200">
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white rounded-xl p-5 shadow-sm">
+            <h3 className="font-bold text-gray-900 mb-2">Pricing</h3>
+            <p className="text-2xl font-bold text-amber-600">₹{artist.priceRange?.min || 0}</p>
+            <p className="text-xs text-gray-500">Starting price</p>
+            {artist.priceRange?.max && (
+              <p className="text-sm text-gray-600 mt-1">Up to ₹{artist.priceRange.max}</p>
+            )}
+          </div>
+          <div className="bg-white rounded-xl p-5 shadow-sm">
+            <h3 className="font-bold text-gray-900 mb-2">Availability</h3>
+            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
+              artist.availability === 'available'
+                ? 'bg-green-50 text-green-700 border border-green-200'
+                : 'bg-red-50 text-red-700 border border-red-200'
+            }`}>
+              <div className={`w-2 h-2 rounded-full ${artist.availability === 'available' ? 'bg-green-500' : 'bg-red-500'}`} />
+              {artist.availability === 'available' ? 'Available' : 'Busy'}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+          <button
+            onClick={() => setActiveTab('portfolio')}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === 'portfolio' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500'
+            }`}
+          >
+            Portfolio ({artist.portfolio?.length || 0})
+          </button>
+          <button
+            onClick={() => setActiveTab('reviews')}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === 'reviews' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500'
+            }`}
+          >
+            Reviews ({reviews.length})
+          </button>
+        </div>
+
+        {activeTab === 'portfolio' && (
+          <div>
+            {artist.portfolio && artist.portfolio.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {artist.portfolio.map((item, i) => (
+                  <div
+                    key={item.id || i}
+                    className="relative aspect-square rounded-xl overflow-hidden cursor-pointer group border border-gray-100"
+                    onClick={() => {
+                      if (item.imageUrl) {
+                        setSelectedImage(item.imageUrl)
+                      }
+                    }}
+                  >
+                    {item.imageUrl ? (
+                      <>
+                        <img
+                          src={item.imageUrl}
+                          alt={item.title || `Artwork ${i + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-end">
+                          <div className="w-full p-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                            <p className="text-white text-xs font-medium truncate">{item.title}</p>
+                            <p className="text-white/70 text-xs">{item.category}</p>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-amber-100 to-orange-100 flex flex-col items-center justify-center p-3">
+                        <span className="text-3xl mb-2">🎨</span>
+                        <p className="text-xs text-amber-800 font-medium text-center truncate w-full">{item.title}</p>
+                        <p className="text-xs text-amber-600">{item.category}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-10">
+                <span className="text-4xl mb-3 block">🖼️</span>
+                <p className="text-gray-500">No portfolio items yet</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'reviews' && (
+          <div>
+            {reviews.length > 0 ? (
+              <div className="space-y-4">
+                {reviews.map((review, i) => (
+                  <div key={review.id || i} className="bg-white rounded-xl p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-sm font-bold text-amber-700">
+                          {(review.customerName || 'C').charAt(0)}
+                        </div>
+                        <span className="font-medium text-gray-900 text-sm">{review.customerName || 'Customer'}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, j) => (
+                          <Star key={j} className={`w-3 h-3 ${j < review.rating ? 'fill-amber-500 text-amber-500' : 'text-gray-300'}`} />
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-gray-600 text-sm">{review.comment}</p>
+                    {review.createdAt && (
+                      <p className="text-xs text-gray-400 mt-2">{review.createdAt}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-10">
+                <span className="text-4xl mb-3 block">⭐</span>
+                <p className="text-gray-500">No reviews yet</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {userRole === 'customer' && (
+          <div className="sticky bottom-4 flex gap-3">
+            <button
+              onClick={() => navigate(`/request/${artist.id}`)}
+              className="flex-1 py-4 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all"
+            >
+              🎨 Request Custom Art
+            </button>
+            <button
+              onClick={() => navigate(`/chat/${artist.id}`)}
+              className="px-4 py-4 bg-white border-2 border-amber-600 text-amber-600 rounded-xl hover:bg-amber-50 transition-all"
+            >
+              <MessageCircle className="w-6 h-6" />
+            </button>
+          </div>
+        )}
+      </div>
     </div>
-  );
+  )
 }

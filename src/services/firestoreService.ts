@@ -518,6 +518,36 @@ export async function checkIsArtist(userId: string): Promise<boolean> {
 }
 
 // ============================================================
+// ADD REVIEW — SIMPLE FORMAT (used by ArtistProfilePage)
+// ============================================================
+
+export async function addReview(reviewData: {
+  artistId: string
+  customerId: string
+  customerName: string
+  rating: number
+  comment: string
+  createdAt: string
+}): Promise<void> {
+  if (!isFirebaseConfigured()) {
+    console.log('[Firestore] Demo mode — review not saved')
+    return
+  }
+  try {
+    await addDoc(collection(db, 'reviews'), {
+      ...reviewData,
+      date: reviewData.createdAt,
+      customerAvatar: '',
+      createdAt: serverTimestamp(),
+    })
+    console.log('[Firestore] ✅ Review added for artist:', reviewData.artistId)
+  } catch (error) {
+    console.error('[Firestore] Error adding review:', error)
+    throw error
+  }
+}
+
+// ============================================================
 // API FETCH HELPER
 // ============================================================
 

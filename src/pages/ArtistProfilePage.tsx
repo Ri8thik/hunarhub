@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useApp } from '@/context/AppContext'
-import { getArtistById, getArtistReviews } from '@/services/firestoreService'
-import { ArrowLeft, Star, MapPin, Clock, CheckCircle, MessageCircle, Loader2, X } from 'lucide-react'
+import { getArtistById, getArtistReviews, addReview } from '@/services/firestoreService'
+import { ArrowLeft, Star, MapPin, Clock, CheckCircle, MessageCircle, Loader2, X, Send } from 'lucide-react'
 
 interface Review {
   id: string
@@ -10,6 +10,7 @@ interface Review {
   rating: number
   comment: string
   createdAt?: string
+  customerId?: string
 }
 
 interface PortfolioItem {
@@ -40,12 +41,44 @@ interface ArtistData {
 export default function ArtistProfilePage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { userRole } = useApp()
+  const { userRole, currentUserId, currentUserName } = useApp()
   const [artist, setArtist] = useState<ArtistData | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'portfolio' | 'reviews'>('portfolio')
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [reviewRating, setReviewRating] = useState(0)
+  const [reviewComment, setReviewComment] = useState('')
+  const [reviewHover, setReviewHover] = useState(0)
+  const [submittingReview, setSubmittingReview] = useState(false)
+  const [reviewSuccess, setReviewSuccess] = useState(false)
+
+  const handleSubmitReview = async () => {
+    if (!reviewRating || !reviewComment.trim()) return
+    if (!currentUserId || !artist) return
+    setSubmittingReview(true)
+    try {
+      const reviewData = {
+        artistId: artist.id,
+        customerId: currentUserId,
+        customerName: currentUserName || 'Anonymous',
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+        createdAt: new Date().toISOString().split('T')[0]
+      }
+      await addReview(reviewData)
+      setReviews(prev => [{ id: 'new-' + Date.now(), ...reviewData }, ...prev])
+      setReviewRating(0)
+      setReviewComment('')
+      setReviewSuccess(true)
+      setTimeout(() => setReviewSuccess(false), 3000)
+    } catch (err) {
+      console.error('Error submitting review:', err)
+      alert('Failed to submit review. Please try again.')
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
 
   useEffect(() => {
     const fetchArtist = async () => {
@@ -271,7 +304,75 @@ export default function ArtistProfilePage() {
         )}
 
         {activeTab === 'reviews' && (
-          <div>
+          <div className="space-y-4">
+            {/* Write a Review Form - hidden for own profile */}
+            {currentUserId && currentUserId !== artist.id && (
+              <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                <h4 className="font-bold text-gray-900 mb-3">Write a Review</h4>
+
+                {reviewSuccess ? (
+                  <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-lg">
+                    <CheckCircle className="w-5 h-5" />
+                    <span className="font-medium">Review submitted successfully!</span>
+                  </div>
+                ) : (
+                  <>
+                    {/* Star Rating */}
+                    <div className="flex items-center gap-1 mb-3">
+                      <span className="text-sm text-gray-600 mr-2">Rating:</span>
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button
+                          key={star}
+                          onClick={() => setReviewRating(star)}
+                          onMouseEnter={() => setReviewHover(star)}
+                          onMouseLeave={() => setReviewHover(0)}
+                          className="p-0.5 transition-transform hover:scale-110"
+                        >
+                          <Star
+                            className={`w-6 h-6 transition-colors ${
+                              star <= (reviewHover || reviewRating)
+                                ? 'fill-amber-500 text-amber-500'
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        </button>
+                      ))}
+                      {reviewRating > 0 && (
+                        <span className="text-sm text-amber-600 font-medium ml-2">
+                          {reviewRating === 1 ? 'Poor' : reviewRating === 2 ? 'Fair' : reviewRating === 3 ? 'Good' : reviewRating === 4 ? 'Very Good' : 'Excellent'}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Comment */}
+                    <textarea
+                      value={reviewComment}
+                      onChange={e => setReviewComment(e.target.value)}
+                      placeholder="Share your experience with this artist..."
+                      rows={3}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
+                    />
+
+                    {/* Submit */}
+                    <div className="flex justify-end mt-3">
+                      <button
+                        onClick={handleSubmitReview}
+                        disabled={!reviewRating || !reviewComment.trim() || submittingReview}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {submittingReview ? (
+                          <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
+                        ) : (
+                          <><Send className="w-4 h-4" /> Submit Review</>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Existing Reviews */}
             {reviews.length > 0 ? (
               <div className="space-y-4">
                 {reviews.map((review, i) => (
@@ -281,7 +382,12 @@ export default function ArtistProfilePage() {
                         <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-sm font-bold text-amber-700">
                           {(review.customerName || 'C').charAt(0)}
                         </div>
-                        <span className="font-medium text-gray-900 text-sm">{review.customerName || 'Customer'}</span>
+                        <div>
+                          <span className="font-medium text-gray-900 text-sm">{review.customerName || 'Customer'}</span>
+                          {review.customerId === currentUserId && (
+                            <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">You</span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-1">
                         {[...Array(5)].map((_, j) => (
@@ -291,7 +397,13 @@ export default function ArtistProfilePage() {
                     </div>
                     <p className="text-gray-600 text-sm">{review.comment}</p>
                     {review.createdAt && (
-                      <p className="text-xs text-gray-400 mt-2">{review.createdAt}</p>
+                      <p className="text-xs text-gray-400 mt-2">
+                        {typeof review.createdAt === 'string'
+                          ? review.createdAt
+                          : typeof review.createdAt === 'object' && 'seconds' in review.createdAt
+                            ? new Date((review.createdAt as any).seconds * 1000).toLocaleDateString('en-IN')
+                            : ''}
+                      </p>
                     )}
                   </div>
                 ))}
@@ -299,7 +411,7 @@ export default function ArtistProfilePage() {
             ) : (
               <div className="text-center py-10">
                 <span className="text-4xl mb-3 block">⭐</span>
-                <p className="text-gray-500">No reviews yet</p>
+                <p className="text-gray-500">No reviews yet. Be the first to review!</p>
               </div>
             )}
           </div>

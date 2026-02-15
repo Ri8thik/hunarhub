@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useApp } from '@/context/AppContext'
 import { getArtistById, getArtistReviews, addReview } from '@/services/firestoreService'
 import { ArrowLeft, Star, MapPin, Clock, CheckCircle, MessageCircle, Loader2, X, Send } from 'lucide-react'
-
+import { doc, updateDoc, increment } from 'firebase/firestore'
+import { db } from '@/config/firebase'
 interface Review {
   id: string
   customerName?: string
@@ -67,7 +68,14 @@ export default function ArtistProfilePage() {
         createdAt: new Date().toISOString().split('T')[0]
       }
       await addReview(reviewData)
+
+      const artistRef = doc(db, 'artists', artist.id)
+      await updateDoc(artistRef, {
+        reviewCount: increment(1)
+      })
+
       setReviews(prev => [{ id: 'new-' + Date.now(), ...reviewData }, ...prev])
+      setArtist(prev => prev ? { ...prev, reviewCount: (prev.reviewCount || 0) + 1 } : null)
       setReviewRating(0)
       setReviewComment('')
       setReviewSuccess(true)

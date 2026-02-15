@@ -158,7 +158,7 @@ export default function MyArtistProfilePage() {
           <p className="text-xs text-gray-500">Rating</p>
         </div>
         <div className="p-4 text-center border-l">
-          <p className="text-xl font-bold text-gray-900">{artist.reviewCount || reviews.length}</p>
+          <p className="text-xl font-bold text-gray-900">{artist.reviewCount ?? 0}</p>
           <p className="text-xs text-gray-500">Reviews</p>
         </div>
         <div className="p-4 text-center border-l">

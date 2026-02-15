@@ -14,7 +14,7 @@ import {
   type SessionUserData,
 } from '@/services/sessionManager';
 import { logout as authLogout, onAuthChange } from '@/services/authService';
-import { isFirebaseConfigured } from '@/config/firebase';
+import { isFirebaseConfigured, db } from '@/config/firebase';
 import {
   getArtists,
   getCategories,
@@ -24,6 +24,8 @@ import {
   checkIsArtist,
   type CreateOrderData,
 } from '@/services/firestoreService';
+
+import { doc, getDoc, setDoc } from 'firebase/firestore'
 
 interface AppState {
   isLoggedIn: boolean;
@@ -52,6 +54,30 @@ interface AppState {
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
+
+async function ensureUserInFirestore(uid: string, email: string, name?: string) {
+  try {
+    const userRef = doc(db, 'users', uid)
+    const userSnap = await getDoc(userRef)
+
+    if (!userSnap.exists()) {
+      const displayName = name || email.split('@')[0] || 'User'
+      await setDoc(userRef, {
+        email: email,
+        name: displayName,
+        role: 'customer',
+        phone: '',
+        location: '',
+        createdAt: new Date().toISOString()
+      })
+      console.log('New user created in Firestore:', email)
+    } else {
+      console.log('User already exists in Firestore:', email)
+    }
+  } catch (err) {
+    console.error('Error ensuring user in Firestore:', err)
+  }
+}
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -159,8 +185,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setSessionData(userData);
             
             await restoreSession();
+            // Ensure user exists in Firestore DB
+            await ensureUserInFirestore(userData.uid, userData.email || '', userData.displayName || 'User');
             fetchOrders(userData.uid, role);
-            
             // Check artist status from Firestore DB
             await checkArtistStatusFromDB(userData.uid);
           }
@@ -187,6 +214,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setCurrentUserName(user.displayName || 'User');
         setCurrentUserEmail(user.email || '');
         setUserRole(role);
+        
+        // Ensure user exists in Firestore DB
+        ensureUserInFirestore(user.uid, user.email || '', user.displayName || 'User');
+        
         fetchOrders(user.uid, role);
         
         // Check artist status from Firestore DB on auth change
@@ -225,6 +256,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setCurrentUserName(userData.displayName || 'User');
       setCurrentUserEmail(userData.email || '');
       setSessionData(userData);
+      
+      // Ensure user exists in Firestore DB
+      ensureUserInFirestore(userData.uid, userData.email || '', userData.displayName || 'User');
+      
       fetchOrders(userData.uid, 'customer');
       
       // Check artist status from Firestore DB

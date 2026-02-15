@@ -7,7 +7,7 @@ import { cn } from '@/utils/cn';
 
 export function ExplorePage() {
   const navigate = useNavigate();
-  const { artists, categories, artistsLoading } = useApp();
+  const { artists, categories, artistsLoading, currentUserId, currentUserEmail  } = useApp();
   const [searchParams] = useSearchParams();
   const initialCat = searchParams.get('category') || '';
   const [search, setSearch] = useState('');
@@ -17,7 +17,7 @@ export function ExplorePage() {
   const [budgetRange, setBudgetRange] = useState<[number, number]>([0, 50000]);
 
   const filtered = useMemo(() => {
-    let results = [...artists];
+    let results = [...artists].filter(a => a.id !== currentUserId && a.email !== currentUserEmail);
     if (search) {
       const q = search.toLowerCase();
       results = results.filter(a =>

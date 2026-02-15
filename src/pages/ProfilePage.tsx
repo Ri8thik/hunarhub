@@ -210,7 +210,7 @@ export default function ProfilePage() {
         ))}
 
         {/* Seed Database */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm">
+        {/* <div className="bg-white rounded-2xl p-6 shadow-sm">
           <h3 className="font-semibold text-gray-900 mb-3">🌱 Database</h3>
           <p className="text-sm text-gray-500 mb-4">Populate Firestore with sample artists, categories, and earnings data.</p>
           <button
@@ -225,10 +225,10 @@ export default function ProfilePage() {
           {seedingStatus && (
             <p className="mt-3 text-sm text-center text-gray-600">{seedingStatus}</p>
           )}
-        </div>
+        </div> */}
 
         {/* Session Debug */}
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+        {/* <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <button
             onClick={() => setShowDebug(!showDebug)}
             className="w-full flex items-center justify-between px-6 py-4"
@@ -272,7 +272,7 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
-        </div>
+        </div> */}
 
         {/* Logout */}
         <button

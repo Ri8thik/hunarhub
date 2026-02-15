@@ -25,6 +25,7 @@ export interface Artist extends User {
   featured: boolean;
   verified: boolean;
   earnings: number;
+  [key: string]: unknown;
 }
 
 export interface Customer extends User {

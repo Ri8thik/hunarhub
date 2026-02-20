@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* ===== TAILWIND V4 — CLASS-BASED DARK MODE ===== */
+@variant dark (&:where(.dark, .dark *));
+
 /* ===== BASE STYLES ===== */
 * {
   box-sizing: border-box;
@@ -16,6 +19,17 @@ body {
   -webkit-font-smoothing: antialiased;
   background: #fafaf9;
   color: #1c1917;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ===== DARK MODE ===== */
+.dark body {
+  background: #0f0f0f;
+  color: #e7e5e4;
+}
+
+.dark {
+  color-scheme: dark;
 }
 
 /* ===== SCROLLBAR ===== */

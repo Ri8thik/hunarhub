@@ -285,7 +285,7 @@ export default function AdminDashboardPage() {
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Top Bar */}
       <div className="bg-gray-800 border-b border-gray-700 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className=" mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-amber-600 rounded-xl flex items-center justify-center">
               <Shield className="w-5 h-5 text-white" />
@@ -304,7 +304,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-6">
+      <div className=" mx-auto p-6">
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">

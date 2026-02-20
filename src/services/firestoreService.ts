@@ -534,11 +534,22 @@ export async function addReview(reviewData: {
     return
   }
   try {
+    // Check if user is authenticated
+    const { getAuth } = await import('firebase/auth')
+    const auth = getAuth()
+    if (!auth.currentUser) {
+      throw new Error('You must be logged in to submit a review. Please logout and login again.')
+    }
+
     await addDoc(collection(db, 'reviews'), {
-      ...reviewData,
+      artistId: reviewData.artistId,
+      customerId: reviewData.customerId,
+      customerName: reviewData.customerName,
+      rating: reviewData.rating,
+      comment: reviewData.comment,
       date: reviewData.createdAt,
       customerAvatar: '',
-      createdAt: serverTimestamp(),
+      createdAt: new Date().toISOString(),
     })
     console.log('[Firestore] ✅ Review added for artist:', reviewData.artistId)
   } catch (error) {

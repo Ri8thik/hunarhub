@@ -187,7 +187,7 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-stone-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-0 bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in">
+      <div className="w-full  grid grid-cols-1 lg:grid-cols-2 gap-0 bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in">
 
         {/* ===== Left Panel - Brand ===== */}
         <div className="hidden lg:flex flex-col items-center justify-center bg-gradient-to-br from-amber-600 via-amber-700 to-orange-700 p-12 relative overflow-hidden">
@@ -217,7 +217,7 @@ export function LoginPage() {
             </div>
 
             {/* Firebase Status */}
-            <div className={cn(
+            {/* <div className={cn(
               'mt-6 px-4 py-2 rounded-xl text-xs font-medium flex items-center gap-2 justify-center',
               firebaseReady ? 'bg-green-500/20 text-green-200' : 'bg-yellow-500/20 text-yellow-200'
             )}>
@@ -226,7 +226,7 @@ export function LoginPage() {
               ) : (
                 <><AlertCircle size={14} /> Demo Mode (Mock Auth)</>
               )}
-            </div>
+            </div> */}
           </div>
         </div>
 

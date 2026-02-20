@@ -116,7 +116,7 @@ export default function ArtistSetupPage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-50">
+    <div className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-950 transition-colors">
       {/* Header */}
       <div className="bg-gradient-to-r from-amber-600 to-orange-600 text-white p-6">
         <div className="flex items-center gap-3 mb-4">
@@ -130,40 +130,40 @@ export default function ArtistSetupPage() {
 
       <div className="max-w-2xl mx-auto p-6 space-y-6">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm">{error}</div>
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 p-3 rounded-lg text-sm">{error}</div>
         )}
 
         {/* Display Name */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Display Name *</label>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Display Name *</label>
           <input
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder="Your artist name"
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 dark:placeholder-gray-500"
           />
         </div>
 
         {/* Bio */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">About You</label>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">About You</label>
           <textarea
             value={bio}
             onChange={e => setBio(e.target.value)}
             placeholder="Tell customers about your art style, experience, and what makes you unique..."
             rows={4}
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none dark:placeholder-gray-500"
           />
         </div>
 
         {/* State */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">State *</label>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">State *</label>
           <select
             value={selectedState}
             onChange={e => handleStateChange(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white"
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
           >
             <option value="">Select State</option>
             {getIndianStates().map(state => (
@@ -175,9 +175,9 @@ export default function ArtistSetupPage() {
         {/* City */}
         {selectedState && (
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">City</label>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">City</label>
             {cityLoading ? (
-              <div className="flex items-center gap-2 text-gray-500 py-3">
+              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 py-3">
                 <Loader2 className="w-4 h-4 animate-spin" /> Loading cities...
               </div>
             ) : (
@@ -187,19 +187,19 @@ export default function ArtistSetupPage() {
                   value={citySearch}
                   onChange={e => setCitySearch(e.target.value)}
                   placeholder="Search city..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 mb-2"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 mb-2 dark:placeholder-gray-500"
                 />
-                <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-xl">
+                <div className="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900">
                   {filteredCities.length > 0 ? filteredCities.map(city => (
                     <button
                       key={city}
                       onClick={() => { setSelectedCity(city); setCitySearch(city) }}
-                      className={`w-full text-left px-4 py-2 hover:bg-amber-50 text-sm ${selectedCity === city ? 'bg-amber-100 font-semibold text-amber-800' : 'text-gray-700'}`}
+                      className={`w-full text-left px-4 py-2 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-sm ${selectedCity === city ? 'bg-amber-100 dark:bg-amber-900/40 font-semibold text-amber-800 dark:text-amber-300' : 'text-gray-700 dark:text-gray-300'}`}
                     >
                       {city}
                     </button>
                   )) : (
-                    <p className="text-gray-400 text-sm p-3">No cities found</p>
+                    <p className="text-gray-400 dark:text-gray-500 text-sm p-3">No cities found</p>
                   )}
                 </div>
               </>
@@ -209,7 +209,7 @@ export default function ArtistSetupPage() {
 
         {/* Skills */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Skills * (select multiple)</label>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Skills * (select multiple)</label>
           <div className="flex flex-wrap gap-2">
             {skillOptions.map(skill => (
               <button
@@ -218,7 +218,7 @@ export default function ArtistSetupPage() {
                 className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                   skills.includes(skill)
                     ? 'bg-amber-600 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
               >
                 {skill}
@@ -226,33 +226,33 @@ export default function ArtistSetupPage() {
             ))}
           </div>
           {skills.length > 0 && (
-            <p className="text-xs text-amber-600 mt-2">{skills.length} skills selected</p>
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">{skills.length} skills selected</p>
           )}
         </div>
 
         {/* Starting Price */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Starting Price (₹) *</label>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Starting Price (₹) *</label>
           <input
             type="number"
             value={priceStart}
             onChange={e => setPriceStart(e.target.value)}
             placeholder="500"
             min="100"
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 dark:placeholder-gray-500"
           />
-          <p className="text-xs text-gray-500 mt-1">Minimum price for a custom art piece</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Minimum price for a custom art piece</p>
         </div>
 
         {/* Portfolio - Image Uploader */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Portfolio Images</label>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Portfolio Images</label>
           <ImageUploader
             images={portfolioImages}
             onChange={setPortfolioImages}
             maxImages={10}
           />
-          <p className="text-xs text-gray-500 mt-1">Upload up to 10 images. Max 3MB each.</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Upload up to 10 images. Max 3MB each.</p>
         </div>
 
         {/* Submit */}

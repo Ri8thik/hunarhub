@@ -49,7 +49,7 @@ export function OrderDetailPage() {
   const nextAction = getNextAction();
 
   return (
-    <div className="p-4 lg:p-8 max-w-5xl mx-auto animate-fade-in">
+    <div className="p-4 lg:p-8  mx-auto animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-stone-500 hover:text-stone-700 transition-colors">

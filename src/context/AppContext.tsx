@@ -43,6 +43,8 @@ interface AppState {
   artistsLoading: boolean;
   categoriesLoading: boolean;
   ordersLoading: boolean;
+  darkMode: boolean;
+  toggleDarkMode: () => void;
   login: (role: UserRole, userId?: string, userName?: string) => void;
   logout: () => void;
   switchRole: (role: UserRole) => void;
@@ -97,6 +99,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [artistsLoading, setArtistsLoading] = useState(true);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [ordersLoading, setOrdersLoading] = useState(false);
+
+  // ---- Dark Mode ----
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('hunarhub_dark_mode') === 'true';
+    } catch { return false; }
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    try { localStorage.setItem('hunarhub_dark_mode', String(darkMode)); } catch {}
+  }, [darkMode]);
+
+  const toggleDarkMode = useCallback(() => setDarkMode(prev => !prev), []);
 
   // ---- Fetch Artists from Firestore ----
   const fetchArtists = useCallback(async () => {
@@ -368,6 +388,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       currentUserId, currentUserName, currentUserEmail,
       sessionData, artists, categories, orders,
       artistsLoading, categoriesLoading, ordersLoading,
+      darkMode, toggleDarkMode,
       login, logout, switchRole, becomeArtist,
       updateOrderStatus: updateOrderStatusFn, addOrder,
       refreshOrders, refreshArtists,

@@ -7,14 +7,14 @@ const customerTabs = [
   { path: '/', icon: Home, label: 'Home' },
   { path: '/explore', icon: Search, label: 'Explore' },
   { path: '/orders', icon: ShoppingBag, label: 'Orders' },
-  { path: '/chat', icon: MessageSquare, label: 'Chat' },
+  // { path: '/chat', icon: MessageSquare, label: 'Chat' },
   { path: '/profile', icon: User, label: 'Profile' },
 ];
 
 const artistTabs = [
   { path: '/', icon: Home, label: 'Dashboard' },
   { path: '/orders', icon: ShoppingBag, label: 'Orders' },
-  { path: '/chat', icon: MessageSquare, label: 'Chat' },
+  // { path: '/chat', icon: MessageSquare, label: 'Chat' },
   { path: '/earnings', icon: Wallet, label: 'Earnings' },
   { path: '/my-artist-profile', icon: Palette, label: 'My Profile' },
 ];
@@ -36,7 +36,7 @@ export function MobileNav() {
   if (hiddenPrefixes.some(p => location.pathname.startsWith(p))) return null;
 
   return (
-    <nav className="lg:hidden bg-white border-t border-stone-200 shrink-0">
+    <nav className="lg:hidden bg-white dark:bg-gray-900 border-t border-stone-200 dark:border-gray-700 shrink-0 transition-colors">
       <div className="flex items-center justify-around px-2 py-2">
         {tabs.map((tab) => {
           const isActive = location.pathname === tab.path;
@@ -47,7 +47,7 @@ export function MobileNav() {
               onClick={() => navigate(tab.path)}
               className={cn(
                 'flex flex-col items-center justify-center py-1.5 px-3 rounded-xl transition-all min-w-[52px]',
-                isActive ? 'text-amber-700' : 'text-stone-400'
+                isActive ? 'text-amber-600 dark:text-amber-400' : 'text-stone-400 dark:text-gray-500'
               )}
             >
               <Icon size={22} strokeWidth={isActive ? 2.5 : 1.8} />

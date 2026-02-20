@@ -80,7 +80,7 @@ export function ChatListPage() {
   }, [currentUserId]);
 
   return (
-    <div className="p-4 lg:p-8 max-w-4xl mx-auto animate-fade-in">
+    <div className="p-4 lg:p-8  mx-auto animate-fade-in">
       <h1 className="text-xl lg:text-2xl font-bold text-stone-800 mb-4">Messages</h1>
 
       {loading ? (
@@ -234,7 +234,7 @@ export function ChatDetailPage() {
   };
 
   return (
-    <div className="flex flex-col h-full max-w-4xl mx-auto">
+    <div className="flex flex-col h-full  mx-auto">
       {/* Header */}
       <div className="bg-white border-b border-stone-200 px-4 lg:px-6 py-3 flex items-center gap-3 shrink-0">
         <button onClick={() => navigate('/chat')} className="flex items-center gap-2 text-stone-500 hover:text-stone-700 transition-colors">

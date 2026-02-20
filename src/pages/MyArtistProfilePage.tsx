@@ -95,7 +95,7 @@ export default function MyArtistProfilePage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-50">
+    <div className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-950 transition-colors">
       {/* Image Modal */}
       {selectedImage && (
         <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
@@ -145,44 +145,44 @@ export default function MyArtistProfilePage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 bg-white border-b">
+      <div className="grid grid-cols-4 bg-white dark:bg-gray-900 border-b dark:border-gray-700">
         <div className="p-4 text-center">
-          <p className="text-xl font-bold text-gray-900">{artist.completedOrders || 0}</p>
-          <p className="text-xs text-gray-500">Orders</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{artist.completedOrders || 0}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Orders</p>
         </div>
-        <div className="p-4 text-center border-l">
+        <div className="p-4 text-center border-l dark:border-gray-700">
           <p className="text-xl font-bold text-amber-600 flex items-center justify-center gap-1">
             <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
             {artist.rating?.toFixed(1) || '0.0'}
           </p>
-          <p className="text-xs text-gray-500">Rating</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Rating</p>
         </div>
-        <div className="p-4 text-center border-l">
-          <p className="text-xl font-bold text-gray-900">{artist.reviewCount ?? 0}</p>
-          <p className="text-xs text-gray-500">Reviews</p>
+        <div className="p-4 text-center border-l dark:border-gray-700">
+          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{artist.reviewCount ?? 0}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Reviews</p>
         </div>
-        <div className="p-4 text-center border-l">
-          <p className="text-xl font-bold text-gray-900">{artist.portfolio?.length || 0}</p>
-          <p className="text-xs text-gray-500">Portfolio</p>
+        <div className="p-4 text-center border-l dark:border-gray-700">
+          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{artist.portfolio?.length || 0}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Portfolio</p>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
+      <div className="mx-auto p-6 space-y-6">
         {/* About */}
         {artist.bio && (
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-2">About Me</h3>
-            <p className="text-gray-600 leading-relaxed">{artist.bio}</p>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border dark:border-gray-700">
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">About Me</h3>
+            <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{artist.bio}</p>
           </div>
         )}
 
         {/* Skills */}
         {artist.skills && artist.skills.length > 0 && (
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-3">Skills</h3>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border dark:border-gray-700">
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-3">Skills</h3>
             <div className="flex flex-wrap gap-2">
               {artist.skills.map((skill, i) => (
-                <span key={i} className="px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full text-sm font-medium border border-amber-200">
+                <span key={i} className="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-sm font-medium border border-amber-200 dark:border-amber-800">
                   {skill}
                 </span>
               ))}
@@ -192,43 +192,36 @@ export default function MyArtistProfilePage() {
 
         {/* Pricing & Availability */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-2">Pricing</h3>
-            <p className="text-2xl font-bold text-amber-600">
-              ₹{artist.priceRange?.min || 0}
-            </p>
-            <p className="text-xs text-gray-500">Starting price</p>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border dark:border-gray-700">
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Pricing</h3>
+            <p className="text-2xl font-bold text-amber-600">₹{artist.priceRange?.min || 0}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Starting price</p>
             {artist.priceRange?.max && (
-              <p className="text-sm text-gray-600 mt-1">Up to ₹{artist.priceRange.max}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Up to ₹{artist.priceRange.max}</p>
             )}
           </div>
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-2">Availability</h3>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border dark:border-gray-700">
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Availability</h3>
             <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
               artist.availability === 'available'
-                ? 'bg-green-50 text-green-700 border border-green-200'
-                : 'bg-red-50 text-red-700 border border-red-200'
+                ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800'
+                : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
             }`}>
-              <div className={`w-2 h-2 rounded-full ${
-                artist.availability === 'available' ? 'bg-green-500' : 'bg-red-500'
-              }`} />
+              <div className={`w-2 h-2 rounded-full ${artist.availability === 'available' ? 'bg-green-500' : 'bg-red-500'}`} />
               {artist.availability === 'available' ? 'Available' : 'Busy'}
             </div>
             {artist.joinedDate && (
-              <p className="text-xs text-gray-500 mt-2">Joined {artist.joinedDate}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Joined {artist.joinedDate}</p>
             )}
           </div>
         </div>
 
         {/* Portfolio */}
         {artist.portfolio && artist.portfolio.length > 0 && (
-          <div className="bg-white rounded-xl p-5 shadow-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border dark:border-gray-700">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-gray-900">Portfolio ({artist.portfolio.length})</h3>
-              <button
-                onClick={() => navigate('/become-artist')}
-                className="text-sm text-amber-600 font-medium hover:underline"
-              >
+              <h3 className="font-bold text-gray-900 dark:text-gray-100">Portfolio ({artist.portfolio.length})</h3>
+              <button onClick={() => navigate('/become-artist')} className="text-sm text-amber-600 dark:text-amber-400 font-medium hover:underline">
                 + Add More
               </button>
             </div>
@@ -236,20 +229,12 @@ export default function MyArtistProfilePage() {
               {artist.portfolio.map((item, i) => (
                 <div
                   key={item.id || i}
-                  className="relative aspect-square rounded-xl overflow-hidden cursor-pointer group border border-gray-100"
-                  onClick={() => {
-                    if (item.imageUrl && item.imageUrl.startsWith('data:')) {
-                      setSelectedImage(item.imageUrl)
-                    }
-                  }}
+                  className="relative aspect-square rounded-xl overflow-hidden cursor-pointer group border border-gray-100 dark:border-gray-700"
+                  onClick={() => { if (item.imageUrl && item.imageUrl.startsWith('data:')) setSelectedImage(item.imageUrl) }}
                 >
                   {item.imageUrl && item.imageUrl.startsWith('data:') ? (
                     <>
-                      <img
-                        src={item.imageUrl}
-                        alt={item.title || `Artwork ${i + 1}`}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
+                      <img src={item.imageUrl} alt={item.title || `Artwork ${i + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-end">
                         <div className="w-full p-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                           <p className="text-white text-xs font-medium truncate">{item.title}</p>
@@ -258,10 +243,10 @@ export default function MyArtistProfilePage() {
                       </div>
                     </>
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-amber-100 to-orange-100 flex flex-col items-center justify-center p-3">
+                    <div className="w-full h-full bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 flex flex-col items-center justify-center p-3">
                       <span className="text-3xl mb-2">🎨</span>
-                      <p className="text-xs text-amber-800 font-medium text-center truncate w-full">{item.title}</p>
-                      <p className="text-xs text-amber-600">{item.category}</p>
+                      <p className="text-xs text-amber-800 dark:text-amber-300 font-medium text-center truncate w-full">{item.title}</p>
+                      <p className="text-xs text-amber-600 dark:text-amber-400">{item.category}</p>
                     </div>
                   )}
                 </div>
@@ -272,14 +257,11 @@ export default function MyArtistProfilePage() {
 
         {/* No Portfolio */}
         {(!artist.portfolio || artist.portfolio.length === 0) && (
-          <div className="bg-white rounded-xl p-8 shadow-sm text-center">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-8 shadow-sm border dark:border-gray-700 text-center">
             <span className="text-4xl mb-3 block">🖼️</span>
-            <h3 className="font-bold text-gray-900 mb-1">No Portfolio Yet</h3>
-            <p className="text-gray-500 text-sm mb-4">Add your artworks to showcase your talent</p>
-            <button
-              onClick={() => navigate('/become-artist')}
-              className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium"
-            >
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-1">No Portfolio Yet</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">Add your artworks to showcase your talent</p>
+            <button onClick={() => navigate('/become-artist')} className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium">
               Add Portfolio Images
             </button>
           </div>
@@ -287,28 +269,26 @@ export default function MyArtistProfilePage() {
 
         {/* Reviews */}
         {reviews.length > 0 && (
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-4">Customer Reviews ({reviews.length})</h3>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border dark:border-gray-700">
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">Customer Reviews ({reviews.length})</h3>
             <div className="space-y-4">
               {reviews.map((review, i) => (
-                <div key={review.id || i} className="border-b border-gray-100 last:border-0 pb-4 last:pb-0">
+                <div key={review.id || i} className="border-b border-gray-100 dark:border-gray-800 last:border-0 pb-4 last:pb-0">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-sm font-bold text-amber-700">
+                      <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/40 rounded-full flex items-center justify-center text-sm font-bold text-amber-700 dark:text-amber-400">
                         {(review.customerName || 'C').charAt(0)}
                       </div>
-                      <span className="font-medium text-gray-900 text-sm">{review.customerName || 'Customer'}</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">{review.customerName || 'Customer'}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       {[...Array(5)].map((_, j) => (
-                        <Star key={j} className={`w-3 h-3 ${j < review.rating ? 'fill-amber-500 text-amber-500' : 'text-gray-300'}`} />
+                        <Star key={j} className={`w-3 h-3 ${j < review.rating ? 'fill-amber-500 text-amber-500' : 'text-gray-300 dark:text-gray-600'}`} />
                       ))}
                     </div>
                   </div>
-                  <p className="text-gray-600 text-sm">{review.comment}</p>
-                  {review.createdAt && (
-                    <p className="text-xs text-gray-400 mt-1">{review.createdAt}</p>
-                  )}
+                  <p className="text-gray-600 dark:text-gray-400 text-sm">{review.comment}</p>
+                  {review.createdAt && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{review.createdAt}</p>}
                 </div>
               ))}
             </div>
@@ -317,10 +297,10 @@ export default function MyArtistProfilePage() {
 
         {/* No Reviews */}
         {reviews.length === 0 && (
-          <div className="bg-white rounded-xl p-6 shadow-sm text-center">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-sm border dark:border-gray-700 text-center">
             <span className="text-3xl mb-2 block">⭐</span>
-            <h3 className="font-bold text-gray-900 mb-1">No Reviews Yet</h3>
-            <p className="text-gray-500 text-sm">Complete orders to start receiving reviews from customers</p>
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-1">No Reviews Yet</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">Complete orders to start receiving reviews from customers</p>
           </div>
         )}
       </div>

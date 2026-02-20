@@ -202,7 +202,7 @@ export default function ArtistProfilePage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
+      <div className=" mx-auto p-6 space-y-6">
         {artist.bio && (
           <div className="bg-white rounded-xl p-5 shadow-sm">
             <h3 className="font-bold text-gray-900 mb-2">About</h3>

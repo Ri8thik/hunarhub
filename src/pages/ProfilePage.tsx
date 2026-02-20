@@ -11,7 +11,7 @@ import { seedDatabase } from '@/services/seedService';
 import { getSessionDebugInfo } from '@/services/sessionManager';
 
 export default function ProfilePage() {
-  const { currentUserName, currentUserEmail, currentUserId, userRole, switchRole, isArtist, artistChecked, logout, artists } = useApp();
+  const { currentUserName, currentUserEmail, currentUserId, userRole, switchRole, isArtist, artistChecked, logout, artists, darkMode, toggleDarkMode } = useApp();
   const navigate = useNavigate();
   const [seedingStatus, setSeedingStatus] = useState('');
   const [seedingProgress, setSeedingProgress] = useState('');
@@ -47,25 +47,16 @@ export default function ProfilePage() {
     {
       title: 'Account',
       items: [
-        { icon: User, label: 'Edit Profile', action: () => handleOpenEdit() },
-        { icon: Shield, label: 'Privacy & Security', action: () => {} },
-        { icon: Bell, label: 'Notifications', action: () => navigate('/notifications') },
+        { icon: User, label: 'Edit Profile', action: () => handleOpenEdit(), toggle: null },
+        { icon: Bell, label: 'Notifications', action: () => navigate('/notifications'), toggle: null },
       ]
     },
     {
       title: 'Preferences',
       items: [
-        { icon: Globe, label: 'Language', value: 'English', action: () => {} },
-        { icon: Moon, label: 'Dark Mode', value: 'Off', action: () => {} },
+        { icon: Moon, label: 'Dark Mode', action: toggleDarkMode, toggle: darkMode },
       ]
     },
-    {
-      title: 'Support',
-      items: [
-        { icon: HelpCircle, label: 'Help Center', action: () => {} },
-        { icon: Settings, label: 'App Settings', action: () => {} },
-      ]
-    }
   ];
 
 
@@ -212,21 +203,23 @@ export default function ProfilePage() {
     : editCities
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-50">
-      <div className="max-w-4xl mx-auto p-4 lg:p-8 space-y-6">
+    <div className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-950 transition-colors">
+      <div className=" mx-auto p-4 lg:p-8 space-y-6">
 
         {/* Profile Header */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-2xl lg:text-3xl font-bold">
               {currentUserName?.charAt(0) || 'U'}
             </div>
             <div className="flex-1">
-              <h1 className="text-xl lg:text-2xl font-bold text-gray-900">{currentUserName || 'User'}</h1>
-              <p className="text-gray-500">{currentUserEmail || 'user@example.com'}</p>
+              <h1 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100">{currentUserName || 'User'}</h1>
+              <p className="text-gray-500 dark:text-gray-400">{currentUserEmail || 'user@example.com'}</p>
               <div className="flex items-center gap-2 mt-1">
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                  userRole === 'artist' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'
+                  userRole === 'artist'
+                    ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400'
+                    : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400'
                 }`}>
                   {userRole === 'artist' ? '🎨 Artist Mode' : '👤 Customer Mode'}
                 </span>
@@ -274,19 +267,19 @@ export default function ProfilePage() {
 
         {/* Role Switcher - ONLY shows if user has artist profile */}
         {artistChecked && isArtist && (
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-gray-900">Switch Mode</h3>
-                <p className="text-sm text-gray-500">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Switch Mode</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Currently in {userRole === 'artist' ? 'Artist' : 'Customer'} mode
                 </p>
               </div>
-              <div className="flex bg-gray-100 rounded-xl p-1">
+              <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
                 <button
                   onClick={() => switchRole('customer')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    userRole === 'customer' ? 'bg-amber-500 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                    userRole === 'customer' ? 'bg-amber-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                   }`}
                 >
                   👤 Customer
@@ -294,7 +287,7 @@ export default function ProfilePage() {
                 <button
                   onClick={() => switchRole('artist')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    userRole === 'artist' ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                    userRole === 'artist' ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                   }`}
                 >
                   🎨 Artist
@@ -329,8 +322,8 @@ export default function ProfilePage() {
 
         {/* Checking artist status */}
         {!artistChecked && (
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-3 text-gray-500">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
               <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
               <span>Checking artist profile...</span>
             </div>
@@ -339,20 +332,25 @@ export default function ProfilePage() {
 
         {/* Settings */}
         {settingsGroups.map(group => (
-          <div key={group.title} className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-6 py-3 border-b border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{group.title}</h3>
+          <div key={group.title} className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden">
+            <div className="px-6 py-3 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{group.title}</h3>
             </div>
             {group.items.map((item, i) => (
               <button
                 key={i}
                 onClick={item.action}
-                className="w-full flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0"
+                className="w-full flex items-center gap-4 px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-50 dark:border-gray-800 last:border-0"
               >
-                <item.icon size={20} className="text-gray-400" />
-                <span className="flex-1 text-left text-gray-700 font-medium">{item.label}</span>
-                {'value' in item && <span className="text-sm text-gray-400">{item.value}</span>}
-                <ChevronRight size={16} className="text-gray-300" />
+                <item.icon size={20} className="text-gray-400 dark:text-gray-500" />
+                <span className="flex-1 text-left text-gray-700 dark:text-gray-200 font-medium">{item.label}</span>
+                {item.toggle !== null && item.toggle !== undefined ? (
+                  <div className={`w-11 h-6 rounded-full transition-colors relative ${item.toggle ? 'bg-amber-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                    <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${item.toggle ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </div>
+                ) : (
+                  <ChevronRight size={16} className="text-gray-300 dark:text-gray-600" />
+                )}
               </button>
             ))}
           </div>
@@ -426,7 +424,7 @@ export default function ProfilePage() {
         {/* Logout */}
         <button
           onClick={logout}
-          className="w-full flex items-center justify-center gap-2 py-4 bg-white rounded-2xl shadow-sm text-red-500 font-semibold hover:bg-red-50 transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-4 bg-white dark:bg-gray-900 rounded-2xl shadow-sm text-red-500 dark:text-red-400 font-semibold hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
         >
           <LogOut size={20} />
           Sign Out
@@ -434,12 +432,12 @@ export default function ProfilePage() {
         {/* Edit Profile Modal */}
         {showEditModal && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowEditModal(false)}>
-            <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
               {/* Modal Header */}
-              <div className="sticky top-0 bg-white border-b px-6 py-4 rounded-t-2xl flex items-center justify-between">
-                <h2 className="text-lg font-bold text-gray-900">Edit Profile</h2>
-                <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
-                  <X className="w-5 h-5 text-gray-500" />
+              <div className="sticky top-0 bg-white dark:bg-gray-900 border-b dark:border-gray-700 px-6 py-4 rounded-t-2xl flex items-center justify-between">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Edit Profile</h2>
+                <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                  <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                 </button>
               </div>
 

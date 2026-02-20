@@ -28,8 +28,8 @@ export function OrdersPage() {
   const filtered = filter === 'all' ? myOrders : myOrders.filter(o => o.status === filter);
 
   return (
-    <div className="p-4 lg:p-8 max-w-5xl mx-auto animate-fade-in">
-      <h1 className="text-xl lg:text-2xl font-bold text-stone-800 mb-4">
+    <div className="p-4 lg:p-8 mx-auto animate-fade-in bg-gray-50 dark:bg-gray-950 min-h-full">
+      <h1 className="text-xl lg:text-2xl font-bold text-stone-800 dark:text-gray-100 mb-4">
         {userRole === 'customer' ? 'My Orders' : 'Order Requests'}
       </h1>
 
@@ -39,7 +39,7 @@ export function OrdersPage() {
           <button key={tab.key} onClick={() => setFilter(tab.key)}
             className={cn(
               'px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-all',
-              filter === tab.key ? 'bg-amber-600 text-white shadow-md' : 'bg-white text-stone-500 border border-stone-200 hover:border-amber-300'
+              filter === tab.key ? 'bg-amber-600 text-white shadow-md' : 'bg-white dark:bg-gray-900 text-stone-500 dark:text-gray-400 border border-stone-200 dark:border-gray-700 hover:border-amber-300'
             )}>
             {tab.label}
           </button>
@@ -47,10 +47,10 @@ export function OrdersPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-2xl border border-stone-100">
+        <div className="text-center py-16 bg-white dark:bg-gray-900 rounded-2xl border border-stone-100 dark:border-gray-700">
           <span className="text-5xl">📋</span>
-          <h3 className="text-lg font-semibold text-stone-700 mt-4">No orders yet</h3>
-          <p className="text-sm text-stone-400 mt-1">
+          <h3 className="text-lg font-semibold text-stone-700 dark:text-gray-300 mt-4">No orders yet</h3>
+          <p className="text-sm text-stone-400 dark:text-gray-500 mt-1">
             {userRole === 'customer' ? 'Browse artists and submit your first request!' : 'Orders from customers will appear here.'}
           </p>
           {userRole === 'customer' && (
@@ -64,26 +64,26 @@ export function OrdersPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map(order => (
             <button key={order.id} onClick={() => navigate(`/order/${order.id}`)}
-              className="bg-white rounded-2xl p-5 shadow-sm hover-lift border border-stone-100 text-left">
+              className="bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm hover-lift border border-stone-100 dark:border-gray-700 text-left">
               <div className="flex items-start gap-3">
                 <Avatar name={userRole === 'customer' ? order.artistName : order.customerName} size="md" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-stone-800 truncate">{order.title}</h3>
-                      <p className="text-xs text-stone-500 mt-0.5">
+                      <h3 className="font-semibold text-stone-800 dark:text-gray-100 truncate">{order.title}</h3>
+                      <p className="text-xs text-stone-500 dark:text-gray-400 mt-0.5">
                         {userRole === 'customer' ? `Artist: ${order.artistName}` : `Customer: ${order.customerName}`}
                       </p>
                     </div>
                     <StatusBadge status={order.status} />
                   </div>
-                  <p className="text-xs text-stone-400 mt-2 line-clamp-2">{order.description}</p>
+                  <p className="text-xs text-stone-400 dark:text-gray-500 mt-2 line-clamp-2">{order.description}</p>
                   <div className="flex items-center gap-3 mt-3">
-                    <span className="text-sm font-semibold text-amber-700">₹{order.budget.toLocaleString('en-IN')}</span>
-                    <span className="text-xs text-stone-300">•</span>
-                    <span className="text-xs text-stone-500">{order.category}</span>
-                    <span className="text-xs text-stone-300">•</span>
-                    <span className="text-xs text-stone-500">Due: {order.deadline}</span>
+                    <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">₹{order.budget.toLocaleString('en-IN')}</span>
+                    <span className="text-xs text-stone-300 dark:text-gray-600">•</span>
+                    <span className="text-xs text-stone-500 dark:text-gray-400">{order.category}</span>
+                    <span className="text-xs text-stone-300 dark:text-gray-600">•</span>
+                    <span className="text-xs text-stone-500 dark:text-gray-400">Due: {order.deadline}</span>
                   </div>
                 </div>
               </div>

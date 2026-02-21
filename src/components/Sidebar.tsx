@@ -40,7 +40,7 @@ export function Sidebar() {
   return (
     <aside className="hidden lg:flex flex-col w-64 bg-white dark:bg-gray-900 border-r border-stone-200 dark:border-gray-700 h-screen shrink-0 transition-colors">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-stone-100 dark:border-gray-700">
+      <div className="flex items-center gap-3 px-6 py-5 border-b border-stone-100 dark:border-gray-700 cursor-pointer" onClick={() => navigate('/')}>
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-600 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-200/50">
           <Palette className="text-white" size={22} />
         </div>

@@ -148,6 +148,45 @@ export async function getArtistById(artistId: string): Promise<Artist | null> {
   }
 }
 
+/**
+ * Real-time listener for the entire artists collection.
+ * Fires immediately with current data, then on every change.
+ */
+export function subscribeToArtists(
+  callback: (artists: Artist[]) => void
+): Unsubscribe {
+  if (!isFirebaseConfigured()) {
+    callback([]);
+    return () => {};
+  }
+  return onSnapshot(collection(db, 'artists'), (snapshot) => {
+    const artists = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as Artist[];
+    console.log('[Firestore] 🔴 Real-time artists update:', artists.length);
+    callback(artists);
+  }, (error) => {
+    console.error('[Firestore] Error in artists listener:', error);
+  });
+}
+
+/**
+ * Real-time listener for the categories collection.
+ */
+export function subscribeToCategories(
+  callback: (categories: Category[]) => void
+): Unsubscribe {
+  if (!isFirebaseConfigured()) {
+    callback([]);
+    return () => {};
+  }
+  return onSnapshot(collection(db, 'categories'), (snapshot) => {
+    const categories = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as Category[];
+    console.log('[Firestore] 🔴 Real-time categories update:', categories.length);
+    callback(categories);
+  }, (error) => {
+    console.error('[Firestore] Error in categories listener:', error);
+  });
+}
+
 // ============================================================
 // CATEGORIES — FROM FIREBASE ONLY
 // ============================================================

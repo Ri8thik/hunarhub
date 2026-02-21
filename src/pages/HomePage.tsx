@@ -11,7 +11,7 @@ export function HomePage() {
   if (userRole === 'artist') return <ArtistDashboard />;
 
   // const featuredArtists = artists.filter(a => a.featured);
-  const featuredArtists = artists.filter(a => a.id !== currentUserId && a.uid !== currentUserId && a.email !== currentUserEmail).slice(0, 6)
+  const featuredArtists = artists.filter(a => a.verified && a.id !== currentUserId && a.uid !== currentUserId && a.email !== currentUserEmail).slice(0, 6)
   // const topRated = [...artists].sort((a, b) => b.rating - a.rating);
   const topRated = [...artists].filter(a => a.id !== currentUserId && a.uid !== currentUserId && a.email !== currentUserEmail).sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 4)
   const navigate = useNavigate();
@@ -265,7 +265,7 @@ function ArtistDashboard() {
           <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
             {[
               { label: 'View Orders', desc: 'Manage requests', emoji: '📋', path: '/orders' },
-              { label: 'Messages', desc: 'Chat with customers', emoji: '💬', path: '/chat' },
+              // { label: 'Messages', desc: 'Chat with customers', emoji: '💬', path: '/chat' },
               { label: 'Earnings', desc: `₹${((artist?.earnings || 0) / 1000).toFixed(0)}k total`, emoji: '💰', path: '/earnings' },
               { label: 'Profile', desc: 'Edit portfolio', emoji: '👤', path: '/profile' },
             ].map(action => (

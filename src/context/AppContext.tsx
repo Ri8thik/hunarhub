@@ -19,6 +19,9 @@ import {
   getArtists,
   getCategories,
   getOrders,
+  subscribeToArtists,
+  subscribeToCategories,
+  subscribeToOrders,
   createOrder as firestoreCreateOrder,
   updateOrderStatus as firestoreUpdateOrderStatus,
   checkIsArtist,
@@ -190,11 +193,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // ---- Load global data on mount ----
+  // ---- Real-time listeners for artists & categories ----
+  // These fire immediately and update automatically whenever Firestore changes
   useEffect(() => {
-    // Fetch categories first, then artists so artist counts are computed correctly
-    fetchCategories().then(() => fetchArtists());
-  }, [fetchArtists, fetchCategories]);
+    setArtistsLoading(true);
+    setCategoriesLoading(true);
+
+    // Subscribe to artists - updates ratings, review counts, etc. in real-time
+    const unsubArtists = subscribeToArtists((data) => {
+      setArtists(data);
+      // Recompute category counts live from fresh artist data
+      setCategories(prev =>
+        prev.map(cat => ({
+          ...cat,
+          count: data.filter(a => Array.isArray(a.skills) && a.skills.includes(cat.name)).length,
+        }))
+      );
+      setArtistsLoading(false);
+    });
+
+    // Subscribe to categories
+    const unsubCategories = subscribeToCategories((data) => {
+      // Merge with current artist state for correct counts
+      setArtists(currentArtists => {
+        setCategories(
+          data.map(cat => ({
+            ...cat,
+            count: currentArtists.filter(a => Array.isArray(a.skills) && a.skills.includes(cat.name)).length,
+          }))
+        );
+        return currentArtists;
+      });
+      setCategoriesLoading(false);
+    });
+
+    // Cleanup listeners when component unmounts
+    return () => {
+      unsubArtists();
+      unsubCategories();
+    };
+  }, []);
 
   // ---- Restore Session on Mount ----
   useEffect(() => {
@@ -259,7 +297,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, [fetchOrders, checkArtistStatusFromDB]);
 
-  // ---- Listen for Session Expiry Events ----
+  // ---- Real-time orders listener — activates once we know who the user is ----
+  useEffect(() => {
+    if (!currentUserId || !isLoggedIn) return;
+
+    setOrdersLoading(true);
+    const unsubOrders = subscribeToOrders(currentUserId, userRole, (data) => {
+      setOrders(data as unknown as Order[]);
+      setOrdersLoading(false);
+    });
+
+    return () => unsubOrders();
+  }, [currentUserId, userRole, isLoggedIn]);
+
+
   useEffect(() => {
     function handleSessionExpired() {
       console.warn('[AppContext] Session expired event received');
@@ -340,10 +391,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUserRole('artist');
     updateUserRole('artist');
     sessionStorage.setItem('hunarhub_is_artist', 'true');
-    
-    // Refresh artists list to include the new artist
-    fetchArtists();
-  }, [fetchArtists]);
+    // No need to manually refresh artists — the real-time listener picks up the new artist doc automatically
+  }, []);
 
   // ---- Order Management ----
   const updateOrderStatusFn = useCallback(async (orderId: string, status: OrderStatus) => {
@@ -387,8 +436,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [currentUserId, userRole, fetchOrders]);
 
   const refreshArtists = useCallback(async () => {
-    await fetchArtists();
-  }, [fetchArtists]);
+    // Artists are kept in sync via real-time onSnapshot listener — no manual refresh needed
+  }, []);
 
   return (
     <AppContext.Provider value={{

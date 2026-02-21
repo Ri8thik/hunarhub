@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useApp } from '@/context/AppContext'
-import { getArtistById, getArtistReviews, addReview } from '@/services/firestoreService'
+import { getArtistById, getArtistReviews, addReview, updateArtistRating } from '@/services/firestoreService'
 import { ArrowLeft, Star, MapPin, Clock, CheckCircle, MessageCircle, Loader2, X, Send } from 'lucide-react'
-import { doc, updateDoc, increment } from 'firebase/firestore'
-import { db } from '@/config/firebase'
 interface Review {
   id: string
   customerName?: string
@@ -67,15 +65,20 @@ export default function ArtistProfilePage() {
         comment: reviewComment.trim(),
         createdAt: new Date().toISOString().split('T')[0]
       }
+
+      // 1. Save the review to Firestore
       await addReview(reviewData)
 
-      const artistRef = doc(db, 'artists', artist.id)
-      await updateDoc(artistRef, {
-        reviewCount: increment(1)
-      })
+      // 2. Build the full list of reviews (existing + new)
+      const newReview = { id: 'new-' + Date.now(), ...reviewData }
+      const updatedReviews = [newReview, ...reviews]
 
-      setReviews(prev => [{ id: 'new-' + Date.now(), ...reviewData }, ...prev])
-      setArtist(prev => prev ? { ...prev, reviewCount: (prev.reviewCount || 0) + 1 } : null)
+      // 3. Recalculate average rating from ALL reviews and persist to DB
+      const { newRating, newCount } = await updateArtistRating(artist.id, updatedReviews)
+
+      // 4. Update local state so UI reflects immediately
+      setReviews(updatedReviews)
+      setArtist(prev => prev ? { ...prev, rating: newRating, reviewCount: newCount } : null)
       setReviewRating(0)
       setReviewComment('')
       setReviewSuccess(true)
@@ -134,7 +137,7 @@ export default function ArtistProfilePage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-50">
+    <div className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-950 transition-colors">
       {selectedImage && (
         <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
           <button className="absolute top-4 right-4 text-white p-2 hover:bg-white/20 rounded-full" onClick={() => setSelectedImage(null)}>
@@ -180,42 +183,42 @@ export default function ArtistProfilePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 bg-white border-b">
+      <div className="grid grid-cols-4 bg-white dark:bg-gray-900 border-b dark:border-gray-700">
         <div className="p-4 text-center">
-          <p className="text-xl font-bold text-gray-900">{artist.completedOrders || 0}</p>
-          <p className="text-xs text-gray-500">Orders</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{artist.completedOrders || 0}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Orders</p>
         </div>
-        <div className="p-4 text-center border-l">
+        <div className="p-4 text-center border-l dark:border-gray-700">
           <p className="text-xl font-bold text-amber-600 flex items-center justify-center gap-1">
             <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
             {artist.rating?.toFixed(1) || '0.0'}
           </p>
-          <p className="text-xs text-gray-500">Rating</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Rating</p>
         </div>
-        <div className="p-4 text-center border-l">
-          <p className="text-xl font-bold text-gray-900">{artist.reviewCount || reviews.length}</p>
-          <p className="text-xs text-gray-500">Reviews</p>
+        <div className="p-4 text-center border-l dark:border-gray-700">
+          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{artist.reviewCount || reviews.length}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Reviews</p>
         </div>
-        <div className="p-4 text-center border-l">
-          <p className="text-xl font-bold text-gray-900">{artist.portfolio?.length || 0}</p>
-          <p className="text-xs text-gray-500">Portfolio</p>
+        <div className="p-4 text-center border-l dark:border-gray-700">
+          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{artist.portfolio?.length || 0}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Portfolio</p>
         </div>
       </div>
 
-      <div className=" mx-auto p-6 space-y-6">
+      <div className="mx-auto p-6 space-y-6">
         {artist.bio && (
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-2">About</h3>
-            <p className="text-gray-600 leading-relaxed">{artist.bio}</p>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border dark:border-gray-700">
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">About</h3>
+            <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{artist.bio}</p>
           </div>
         )}
 
         {artist.skills && artist.skills.length > 0 && (
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-3">Skills</h3>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border dark:border-gray-700">
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-3">Skills</h3>
             <div className="flex flex-wrap gap-2">
               {artist.skills.map((skill, i) => (
-                <span key={i} className="px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full text-sm font-medium border border-amber-200">
+                <span key={i} className="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-sm font-medium border border-amber-200 dark:border-amber-800">
                   {skill}
                 </span>
               ))}
@@ -224,20 +227,20 @@ export default function ArtistProfilePage() {
         )}
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-2">Pricing</h3>
-            <p className="text-2xl font-bold text-amber-600">₹{artist.priceRange?.min || 0}</p>
-            <p className="text-xs text-gray-500">Starting price</p>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border dark:border-gray-700">
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Pricing</h3>
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">₹{artist.priceRange?.min || 0}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Starting price</p>
             {artist.priceRange?.max && (
-              <p className="text-sm text-gray-600 mt-1">Up to ₹{artist.priceRange.max}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Up to ₹{artist.priceRange.max}</p>
             )}
           </div>
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-2">Availability</h3>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border dark:border-gray-700">
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Availability</h3>
             <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
               artist.availability === 'available'
-                ? 'bg-green-50 text-green-700 border border-green-200'
-                : 'bg-red-50 text-red-700 border border-red-200'
+                ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800'
+                : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
             }`}>
               <div className={`w-2 h-2 rounded-full ${artist.availability === 'available' ? 'bg-green-500' : 'bg-red-500'}`} />
               {artist.availability === 'available' ? 'Available' : 'Busy'}
@@ -245,11 +248,14 @@ export default function ArtistProfilePage() {
           </div>
         </div>
 
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+        {/* Portfolio / Reviews Tab Switch */}
+        <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
           <button
             onClick={() => setActiveTab('portfolio')}
             className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-              activeTab === 'portfolio' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500'
+              activeTab === 'portfolio'
+                ? 'bg-white dark:bg-gray-700 text-amber-700 dark:text-amber-400 shadow-sm'
+                : 'text-gray-500 dark:text-gray-400'
             }`}
           >
             Portfolio ({artist.portfolio?.length || 0})
@@ -257,7 +263,9 @@ export default function ArtistProfilePage() {
           <button
             onClick={() => setActiveTab('reviews')}
             className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-              activeTab === 'reviews' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500'
+              activeTab === 'reviews'
+                ? 'bg-white dark:bg-gray-700 text-amber-700 dark:text-amber-400 shadow-sm'
+                : 'text-gray-500 dark:text-gray-400'
             }`}
           >
             Reviews ({reviews.length})
@@ -271,12 +279,8 @@ export default function ArtistProfilePage() {
                 {artist.portfolio.map((item, i) => (
                   <div
                     key={item.id || i}
-                    className="relative aspect-square rounded-xl overflow-hidden cursor-pointer group border border-gray-100"
-                    onClick={() => {
-                      if (item.imageUrl) {
-                        setSelectedImage(item.imageUrl)
-                      }
-                    }}
+                    className="relative aspect-square rounded-xl overflow-hidden cursor-pointer group border border-gray-100 dark:border-gray-700"
+                    onClick={() => { if (item.imageUrl) setSelectedImage(item.imageUrl) }}
                   >
                     {item.imageUrl ? (
                       <>
@@ -293,10 +297,10 @@ export default function ArtistProfilePage() {
                         </div>
                       </>
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-amber-100 to-orange-100 flex flex-col items-center justify-center p-3">
+                      <div className="w-full h-full bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 flex flex-col items-center justify-center p-3">
                         <span className="text-3xl mb-2">🎨</span>
-                        <p className="text-xs text-amber-800 font-medium text-center truncate w-full">{item.title}</p>
-                        <p className="text-xs text-amber-600">{item.category}</p>
+                        <p className="text-xs text-amber-800 dark:text-amber-300 font-medium text-center truncate w-full">{item.title}</p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400">{item.category}</p>
                       </div>
                     )}
                   </div>
@@ -305,7 +309,7 @@ export default function ArtistProfilePage() {
             ) : (
               <div className="text-center py-10">
                 <span className="text-4xl mb-3 block">🖼️</span>
-                <p className="text-gray-500">No portfolio items yet</p>
+                <p className="text-gray-500 dark:text-gray-400">No portfolio items yet</p>
               </div>
             )}
           </div>
@@ -313,21 +317,20 @@ export default function ArtistProfilePage() {
 
         {activeTab === 'reviews' && (
           <div className="space-y-4">
-            {/* Write a Review Form - hidden for own profile */}
+            {/* Write a Review Form */}
             {currentUserId && currentUserId !== artist.id && (
-              <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-                <h4 className="font-bold text-gray-900 mb-3">Write a Review</h4>
+              <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+                <h4 className="font-bold text-gray-900 dark:text-gray-100 mb-3">Write a Review</h4>
 
                 {reviewSuccess ? (
-                  <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-lg">
+                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 p-3 rounded-lg">
                     <CheckCircle className="w-5 h-5" />
                     <span className="font-medium">Review submitted successfully!</span>
                   </div>
                 ) : (
                   <>
-                    {/* Star Rating */}
                     <div className="flex items-center gap-1 mb-3">
-                      <span className="text-sm text-gray-600 mr-2">Rating:</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Rating:</span>
                       {[1, 2, 3, 4, 5].map(star => (
                         <button
                           key={star}
@@ -336,32 +339,26 @@ export default function ArtistProfilePage() {
                           onMouseLeave={() => setReviewHover(0)}
                           className="p-0.5 transition-transform hover:scale-110"
                         >
-                          <Star
-                            className={`w-6 h-6 transition-colors ${
-                              star <= (reviewHover || reviewRating)
-                                ? 'fill-amber-500 text-amber-500'
-                                : 'text-gray-300'
-                            }`}
-                          />
+                          <Star className={`w-6 h-6 transition-colors ${
+                            star <= (reviewHover || reviewRating) ? 'fill-amber-500 text-amber-500' : 'text-gray-300 dark:text-gray-600'
+                          }`} />
                         </button>
                       ))}
                       {reviewRating > 0 && (
-                        <span className="text-sm text-amber-600 font-medium ml-2">
+                        <span className="text-sm text-amber-600 dark:text-amber-400 font-medium ml-2">
                           {reviewRating === 1 ? 'Poor' : reviewRating === 2 ? 'Fair' : reviewRating === 3 ? 'Good' : reviewRating === 4 ? 'Very Good' : 'Excellent'}
                         </span>
                       )}
                     </div>
 
-                    {/* Comment */}
                     <textarea
                       value={reviewComment}
                       onChange={e => setReviewComment(e.target.value)}
                       placeholder="Share your experience with this artist..."
                       rows={3}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
+                      className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
                     />
 
-                    {/* Submit */}
                     <div className="flex justify-end mt-3">
                       <button
                         onClick={handleSubmitReview}
@@ -384,14 +381,14 @@ export default function ArtistProfilePage() {
             {reviews.length > 0 ? (
               <div className="space-y-4">
                 {reviews.map((review, i) => (
-                  <div key={review.id || i} className="bg-white rounded-xl p-4 shadow-sm">
+                  <div key={review.id || i} className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm border dark:border-gray-700">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-sm font-bold text-amber-700">
+                        <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/40 rounded-full flex items-center justify-center text-sm font-bold text-amber-700 dark:text-amber-400">
                           {(review.customerName || 'C').charAt(0)}
                         </div>
                         <div>
-                          <span className="font-medium text-gray-900 text-sm">{review.customerName || 'Customer'}</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">{review.customerName || 'Customer'}</span>
                           {review.customerId === currentUserId && (
                             <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">You</span>
                           )}

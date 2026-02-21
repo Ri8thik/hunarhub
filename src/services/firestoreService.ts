@@ -307,6 +307,36 @@ export async function getArtistReviews(artistId: string): Promise<Review[]> {
   }
 }
 
+/**
+ * Recalculates and persists the average rating + review count for an artist.
+ * Call this every time a new review is submitted.
+ */
+export async function updateArtistRating(
+  artistId: string,
+  allReviews: { rating: number }[]
+): Promise<{ newRating: number; newCount: number }> {
+  const newCount = allReviews.length;
+  const newRating =
+    newCount > 0
+      ? Math.round((allReviews.reduce((sum, r) => sum + r.rating, 0) / newCount) * 10) / 10
+      : 0;
+
+  if (isFirebaseConfigured()) {
+    try {
+      await updateDoc(doc(db, 'artists', artistId), {
+        rating: newRating,
+        reviewCount: newCount,
+        updatedAt: serverTimestamp(),
+      });
+      console.log(`[Firestore] ✅ Artist ${artistId} rating updated → ${newRating} (${newCount} reviews)`);
+    } catch (error) {
+      console.error('[Firestore] Error updating artist rating:', error);
+      throw error;
+    }
+  }
+  return { newRating, newCount };
+}
+
 // ============================================================
 // CHAT / MESSAGES — FROM FIREBASE ONLY
 // ============================================================

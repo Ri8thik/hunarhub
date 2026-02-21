@@ -124,6 +124,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const data = await getArtists();
       setArtists(data);
+      // Update category counts based on fresh artist list
+      setCategories(prev =>
+        prev.map(cat => ({
+          ...cat,
+          count: data.filter(a => Array.isArray(a.skills) && a.skills.includes(cat.name)).length,
+        }))
+      );
     } catch (error) {
       console.error('[AppContext] Error fetching artists:', error);
     } finally {
@@ -136,6 +143,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCategoriesLoading(true);
     try {
       const data = await getCategories();
+      // Store raw categories first; counts will be filled in by fetchArtists
       setCategories(data);
     } catch (error) {
       console.error('[AppContext] Error fetching categories:', error);
@@ -184,8 +192,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ---- Load global data on mount ----
   useEffect(() => {
-    fetchArtists();
-    fetchCategories();
+    // Fetch categories first, then artists so artist counts are computed correctly
+    fetchCategories().then(() => fetchArtists());
   }, [fetchArtists, fetchCategories]);
 
   // ---- Restore Session on Mount ----

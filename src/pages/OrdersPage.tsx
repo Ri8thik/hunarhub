@@ -1,4 +1,22 @@
 import { useState } from 'react';
+
+/** Safely format budget */
+function formatBudget(budget: unknown): string {
+  const num = Number(budget);
+  return isNaN(num) ? '—' : num.toLocaleString('en-IN');
+}
+
+/** Safely format deadline — handles Firestore Timestamp, string, or Date */
+function formatDeadline(value: unknown): string {
+  if (!value) return '—';
+  if (typeof value === 'object' && value !== null && 'seconds' in value) {
+    return new Date((value as { seconds: number }).seconds * 1000)
+      .toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+  if (value instanceof Date) return value.toLocaleDateString('en-IN');
+  if (typeof value === 'string') return value;
+  return String(value);
+}
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -79,11 +97,11 @@ export function OrdersPage() {
                   </div>
                   <p className="text-xs text-stone-400 dark:text-gray-500 mt-2 line-clamp-2">{order.description}</p>
                   <div className="flex items-center gap-3 mt-3">
-                    <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">₹{order.budget.toLocaleString('en-IN')}</span>
+                    <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">₹{formatBudget(order.budget)}</span>
                     <span className="text-xs text-stone-300 dark:text-gray-600">•</span>
                     <span className="text-xs text-stone-500 dark:text-gray-400">{order.category}</span>
                     <span className="text-xs text-stone-300 dark:text-gray-600">•</span>
-                    <span className="text-xs text-stone-500 dark:text-gray-400">Due: {order.deadline}</span>
+                    <span className="text-xs text-stone-500 dark:text-gray-400">Due: {formatDeadline(order.deadline)}</span>
                   </div>
                 </div>
               </div>

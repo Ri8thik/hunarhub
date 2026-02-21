@@ -652,6 +652,7 @@ export default function ProfilePage() {
 
   // Edit modal states
   const [showEditModal, setShowEditModal] = useState(false);
+  const [editProfileLoading, setEditProfileLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editSuccess, setEditSuccess] = useState(false);
   const [editName, setEditName] = useState('');
@@ -674,6 +675,7 @@ export default function ProfilePage() {
   ];
 
   const handleOpenEdit = async () => {
+    setEditProfileLoading(true);
     setEditName(currentUserName || '');
     setEditPhone(''); setEditSelectedState(''); setEditSelectedCity('');
     setEditBio(''); setEditSkills([]); setEditPriceMin(''); setEditAvailability('available');
@@ -705,6 +707,7 @@ export default function ProfilePage() {
         }
       }
     } catch (err) { console.error('Error loading profile for edit:', err); }
+    setEditProfileLoading(false);
     setShowEditModal(true); setEditSuccess(false);
   };
 
@@ -775,9 +778,11 @@ export default function ProfilePage() {
                   {userRole === 'artist' ? '🎨 Artist Mode' : '🛒 Customer Mode'}
                 </div>
               </div>
-              <button className="pp-edit-btn" onClick={handleOpenEdit}>
-                <Edit3 size={13} />
-                Edit
+              <button className="pp-edit-btn" onClick={handleOpenEdit} disabled={editProfileLoading}>
+                {editProfileLoading
+                  ? <><Loader2 size={13} className="animate-spin" /> Loading…</>
+                  : <><Edit3 size={13} /> Edit</>
+                }
               </button>
             </div>
           </div>
@@ -885,12 +890,12 @@ export default function ProfilePage() {
             <div className="pp-card-header">
               <User size={12} /> Account
             </div>
-            <button className="pp-settings-row" onClick={handleOpenEdit}>
+            <button className="pp-settings-row" onClick={handleOpenEdit} disabled={editProfileLoading}>
               <div className="pp-settings-icon-wrap" style={{ background: '#eff6ff' }}>
-                <Edit3 size={16} color="#3b82f6" />
+                {editProfileLoading ? <Loader2 size={16} color="#3b82f6" className="animate-spin" /> : <Edit3 size={16} color="#3b82f6" />}
               </div>
               <span className="pp-settings-label">Edit Profile</span>
-              <ChevronRight size={15} color="#cbd5e1" />
+              {editProfileLoading ? <Loader2 size={15} color="#d97706" className="animate-spin" /> : <ChevronRight size={15} color="#cbd5e1" />}
             </button>
             <button className="pp-settings-row" onClick={() => navigate('/notifications')}>
               <div className="pp-settings-icon-wrap" style={{ background: '#fef3c7' }}>

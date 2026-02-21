@@ -559,10 +559,6 @@ export default function MyArtistProfilePage() {
             <span style={{ color: '#fff', fontWeight: 700, fontSize: '0.95rem', letterSpacing: '0.02em' }}>
               My Artist Profile
             </span>
-            <button className="map-edit-btn" onClick={() => navigate('/become-artist')}>
-              <Edit style={{ width: 14, height: 14 }} />
-              Edit Artist Profile
-            </button>
           </div>
 
           {/* Profile row */}

@@ -30,39 +30,30 @@ export function LoginPage() {
 
   const clearMessages = () => { setError(''); setSuccess(''); setShowRegisterHint(false); };
 
-  // ============================================================
-  // EMAIL LOGIN / REGISTER
-  // ============================================================
-
+  // ── Email Login / Register ──────────────────────────────────
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearMessages();
     setLoading(true);
-
     try {
       let result;
       if (mode === 'register') {
         if (!name.trim()) { setError('Please enter your full name'); setLoading(false); return; }
         if (!email.trim()) { setError('Please enter your email address'); setLoading(false); return; }
         if (password.length < 6) { setError('Password must be at least 6 characters'); setLoading(false); return; }
-        // Everyone registers as customer first
         result = await registerWithEmail(email, password, name, 'customer');
       } else {
         if (!email.trim()) { setError('Please enter your email address'); setLoading(false); return; }
         if (!password.trim()) { setError('Please enter your password'); setLoading(false); return; }
         result = await loginWithEmail(email, password, 'customer');
       }
-
       if (result.success) {
         login('customer');
         navigate('/');
       } else {
         const errMsg = result.error || 'Authentication failed';
         setError(errMsg);
-        if (mode === 'login' && (
-          errMsg.includes('No account found') ||
-          errMsg.includes('Invalid email or password')
-        )) {
+        if (mode === 'login' && (errMsg.includes('No account found') || errMsg.includes('Invalid email or password'))) {
           setShowRegisterHint(true);
         }
       }
@@ -73,23 +64,14 @@ export function LoginPage() {
     }
   };
 
-  // ============================================================
-  // GOOGLE LOGIN
-  // ============================================================
-
+  // ── Google Login ────────────────────────────────────────────
   const handleGoogleLogin = async () => {
     clearMessages();
     setLoading(true);
-
     try {
-      // Everyone starts as customer
       const result = await loginWithGoogle('customer');
-      if (result.success) {
-        login('customer');
-        navigate('/');
-      } else {
-        setError(result.error || 'Google sign-in failed');
-      }
+      if (result.success) { login('customer'); navigate('/'); }
+      else setError(result.error || 'Google sign-in failed');
     } catch {
       setError('Google sign-in failed. Please try again.');
     } finally {
@@ -97,19 +79,11 @@ export function LoginPage() {
     }
   };
 
-  // ============================================================
-  // FORGOT PASSWORD
-  // ============================================================
-
+  // ── Forgot Password ─────────────────────────────────────────
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     clearMessages();
-
-    if (!forgotEmail.trim()) {
-      setError('Please enter your email address');
-      return;
-    }
-
+    if (!forgotEmail.trim()) { setError('Please enter your email address'); return; }
     setLoading(true);
     try {
       const result = await resetPassword(forgotEmail);
@@ -126,52 +100,54 @@ export function LoginPage() {
     }
   };
 
-  // ============================================================
-  // FORGOT PASSWORD MODAL
-  // ============================================================
+  // Shared class helpers
+  const inputCls = "w-full px-4 py-3 bg-stone-50 dark:bg-gray-800 border border-stone-200 dark:border-gray-700 text-stone-900 dark:text-gray-100 placeholder-stone-400 dark:placeholder-gray-500 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-400 transition-all";
+  const labelCls = "text-xs font-semibold text-stone-600 dark:text-gray-300 mb-1.5 block";
 
+  // ── Forgot Password Screen ──────────────────────────────────
   if (showForgotPassword) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-stone-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 animate-scale-in">
-          <button onClick={() => { setShowForgotPassword(false); clearMessages(); }}
-            className="flex items-center gap-2 text-stone-500 hover:text-stone-700 mb-6 text-sm font-medium">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-stone-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white dark:bg-gray-900 border border-stone-100 dark:border-gray-800 rounded-3xl shadow-2xl p-8 animate-scale-in">
+          <button
+            onClick={() => { setShowForgotPassword(false); clearMessages(); }}
+            className="flex items-center gap-2 text-stone-500 dark:text-gray-400 hover:text-stone-700 dark:hover:text-gray-200 mb-6 text-sm font-medium transition-colors"
+          >
             <ArrowLeft size={16} /> Back to Login
           </button>
 
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mx-auto mb-4 shadow-lg">
             <Mail className="text-white" size={28} />
           </div>
 
-          <h2 className="text-2xl font-bold text-center text-stone-800 mb-2">Reset Password</h2>
-          <p className="text-stone-500 text-sm text-center mb-6">
+          <h2 className="text-2xl font-bold text-center text-stone-800 dark:text-gray-100 mb-2">Reset Password</h2>
+          <p className="text-stone-500 dark:text-gray-400 text-sm text-center mb-6">
             Enter your email and we'll send you a link to reset your password
           </p>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4 text-sm text-red-700 flex items-center gap-2">
+            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-4 text-sm text-red-700 dark:text-red-400 flex items-center gap-2">
               <AlertCircle size={16} className="shrink-0" /> <span>{error}</span>
             </div>
           )}
           {success && (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4 text-sm text-green-700 flex items-center gap-2">
+            <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl p-3 mb-4 text-sm text-green-700 dark:text-green-400 flex items-center gap-2">
               <CheckCircle2 size={16} className="shrink-0" /> <span>{success}</span>
             </div>
           )}
 
           <form onSubmit={handleForgotPassword} className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Email Address</label>
+              <label className={labelCls}>Email Address</label>
               <div className="relative">
-                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 dark:text-gray-500" />
                 <input type="email" placeholder="you@example.com" value={forgotEmail}
                   onChange={e => setForgotEmail(e.target.value)} required autoFocus
-                  className="w-full px-4 py-3 pl-11 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-400" />
+                  className={cn(inputCls, 'pl-11')} />
               </div>
             </div>
-
             <button type="submit" disabled={loading}
-              className="w-full py-3.5 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-amber-200/60 hover:shadow-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+              className="w-full py-3.5 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2">
               {loading && <Loader2 size={16} className="animate-spin" />}
               Send Reset Link
             </button>
@@ -181,15 +157,12 @@ export function LoginPage() {
     );
   }
 
-  // ============================================================
-  // MAIN LOGIN UI
-  // ============================================================
-
+  // ── Main Login / Register Screen ────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-stone-100 flex items-center justify-center p-4">
-      <div className="w-full  grid grid-cols-1 lg:grid-cols-2 gap-0 bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-stone-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center p-4">
+      <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-0 bg-white dark:bg-gray-900 rounded-3xl shadow-2xl overflow-hidden animate-scale-in border border-stone-100 dark:border-gray-800">
 
-        {/* ===== Left Panel - Brand ===== */}
+        {/* ── Left Panel — Brand ── */}
         <div className="hidden lg:flex flex-col items-center justify-center bg-gradient-to-br from-amber-600 via-amber-700 to-orange-700 p-12 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/20 rounded-full -translate-y-1/2 translate-x-1/2" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-500/20 rounded-full translate-y-1/2 -translate-x-1/2" />
@@ -215,23 +188,12 @@ export function LoginPage() {
                 </div>
               ))}
             </div>
-
-            {/* Firebase Status */}
-            {/* <div className={cn(
-              'mt-6 px-4 py-2 rounded-xl text-xs font-medium flex items-center gap-2 justify-center',
-              firebaseReady ? 'bg-green-500/20 text-green-200' : 'bg-yellow-500/20 text-yellow-200'
-            )}>
-              {firebaseReady ? (
-                <><CheckCircle2 size={14} /> Firebase Connected</>
-              ) : (
-                <><AlertCircle size={14} /> Demo Mode (Mock Auth)</>
-              )}
-            </div> */}
           </div>
         </div>
 
-        {/* ===== Right Panel - Form ===== */}
-        <div className="p-6 sm:p-10 lg:p-12 overflow-y-auto max-h-screen">
+        {/* ── Right Panel — Form ── */}
+        <div className="p-6 sm:p-10 lg:p-12 overflow-y-auto max-h-screen bg-white dark:bg-gray-900">
+
           {/* Mobile Logo */}
           <div className="flex items-center gap-3 mb-6 lg:hidden">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-600 to-orange-600 flex items-center justify-center shadow-lg">
@@ -239,31 +201,33 @@ export function LoginPage() {
             </div>
             <div>
               <h1 className="text-2xl font-extrabold gradient-text">HunarHub</h1>
-              <p className="text-xs text-stone-400">Custom Art Marketplace</p>
+              <p className="text-xs text-stone-400 dark:text-gray-500">Custom Art Marketplace</p>
             </div>
           </div>
 
-          {/* Firebase status on mobile */}
+          {/* Firebase demo warning (mobile) */}
           {!firebaseReady && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-800 flex items-center gap-2 lg:hidden">
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-3 mb-4 text-xs text-amber-800 dark:text-amber-300 flex items-center gap-2 lg:hidden">
               <AlertCircle size={14} />
               <span><strong>Demo Mode:</strong> Firebase not configured. Any credentials work.</span>
             </div>
           )}
 
+          {/* Heading */}
           <div className="flex items-center gap-3 mb-1">
-            <h2 className="text-2xl font-bold text-stone-800">
+            <h2 className="text-2xl font-bold text-stone-800 dark:text-gray-100">
               {mode === 'login' ? 'Welcome back!' : 'Create Account'}
             </h2>
-            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+            <span className={cn(
+              'px-3 py-1 rounded-full text-xs font-bold',
               mode === 'login'
-                ? 'bg-blue-100 text-blue-700'
-                : 'bg-green-100 text-green-700'
-            }`}>
+                ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400'
+                : 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400'
+            )}>
               {mode === 'login' ? 'LOGIN' : 'NEW USER'}
             </span>
           </div>
-          <p className="text-stone-500 text-sm mb-6">
+          <p className="text-stone-500 dark:text-gray-400 text-sm mb-6">
             {mode === 'login'
               ? 'Sign in to browse artists and order custom art'
               : '🎉 Join HunarHub as a customer — you can become an artist later!'}
@@ -271,14 +235,14 @@ export function LoginPage() {
 
           {/* Error / Success Messages */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4 text-sm text-red-700 animate-slide-down">
+            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-4 text-sm text-red-700 dark:text-red-400 animate-slide-down">
               <div className="flex items-start gap-2">
                 <AlertCircle size={16} className="shrink-0 mt-0.5" />
                 <span>{error}</span>
               </div>
               {showRegisterHint && mode === 'login' && (
-                <div className="mt-2 pt-2 border-t border-red-200">
-                  <p className="text-xs text-red-600 mb-2">👆 It looks like you don't have an account yet.</p>
+                <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
+                  <p className="text-xs text-red-600 dark:text-red-400 mb-2">👆 It looks like you don't have an account yet.</p>
                   <button
                     type="button"
                     onClick={() => { setMode('register'); setShowRegisterHint(false); clearMessages(); }}
@@ -290,61 +254,62 @@ export function LoginPage() {
             </div>
           )}
           {success && (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4 text-sm text-green-700 flex items-start gap-2 animate-slide-down">
+            <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl p-3 mb-4 text-sm text-green-700 dark:text-green-400 flex items-start gap-2 animate-slide-down">
               <CheckCircle2 size={16} className="shrink-0 mt-0.5" />
               <span>{success}</span>
             </div>
           )}
 
-          {/* ================================================================ */}
-          {/* EMAIL FORM                                                       */}
-          {/* ================================================================ */}
+          {/* Email Form */}
           <form onSubmit={handleEmailSubmit} className="space-y-4">
             {/* Name (register only) */}
             {mode === 'register' && (
               <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Full Name</label>
+                <label className={labelCls}>Full Name</label>
                 <input type="text" placeholder="e.g. Rahul Sharma" value={name}
                   onChange={e => setName(e.target.value)}
-                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-400 transition-all" />
+                  className={inputCls} />
               </div>
             )}
 
             {/* Email */}
             <div>
-              <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Email Address</label>
+              <label className={labelCls}>Email Address</label>
               <div className="relative">
-                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 dark:text-gray-500" />
                 <input type="email" placeholder="you@example.com" value={email}
                   onChange={e => setEmail(e.target.value)} required autoComplete="email"
-                  className="w-full px-4 py-3 pl-11 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-400 transition-all" />
+                  className={cn(inputCls, 'pl-11')} />
               </div>
             </div>
 
             {/* Password */}
             <div>
-              <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Password</label>
+              <label className={labelCls}>Password</label>
               <div className="relative">
-                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
-                <input type={showPassword ? 'text' : 'password'} placeholder={mode === 'register' ? 'Min 6 characters' : 'Enter password'}
+                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 dark:text-gray-500" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder={mode === 'register' ? 'Min 6 characters' : 'Enter password'}
                   value={password} onChange={e => setPassword(e.target.value)} required
                   autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
-                  className="w-full px-4 py-3 pl-11 pr-11 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-400 transition-all" />
+                  className={cn(inputCls, 'pl-11 pr-11')} />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600">
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 dark:text-gray-500 hover:text-stone-600 dark:hover:text-gray-300 transition-colors">
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
               {mode === 'register' && (
-                <p className="text-[11px] text-stone-400 mt-1.5">Must be at least 6 characters long</p>
+                <p className="text-[11px] text-stone-400 dark:text-gray-500 mt-1.5">Must be at least 6 characters long</p>
               )}
             </div>
 
             {/* Forgot Password */}
             {mode === 'login' && (
               <div className="text-right">
-                <button type="button" onClick={() => { setShowForgotPassword(true); setForgotEmail(email); clearMessages(); }}
-                  className="text-xs text-amber-600 font-semibold hover:underline">
+                <button type="button"
+                  onClick={() => { setShowForgotPassword(true); setForgotEmail(email); clearMessages(); }}
+                  className="text-xs text-amber-600 dark:text-amber-400 font-semibold hover:underline">
                   Forgot password?
                 </button>
               </div>
@@ -352,22 +317,22 @@ export function LoginPage() {
 
             {/* Submit */}
             <button type="submit" disabled={loading}
-              className="w-full py-3.5 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-amber-200/60 hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              className="w-full py-3.5 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-amber-200/40 dark:shadow-none hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
               {loading && <Loader2 size={16} className="animate-spin" />}
               {mode === 'login' ? '🔓 Sign In to My Account' : '🚀 Create My Account'}
             </button>
           </form>
 
-          {/* ===== Divider ===== */}
+          {/* Divider */}
           <div className="flex items-center gap-3 my-5">
-            <div className="flex-1 h-px bg-stone-200" />
-            <span className="text-xs text-stone-400">or continue with</span>
-            <div className="flex-1 h-px bg-stone-200" />
+            <div className="flex-1 h-px bg-stone-200 dark:bg-gray-700" />
+            <span className="text-xs text-stone-400 dark:text-gray-500">or continue with</span>
+            <div className="flex-1 h-px bg-stone-200 dark:bg-gray-700" />
           </div>
 
-          {/* ===== Google Login ===== */}
+          {/* Google Login */}
           <button onClick={handleGoogleLogin} disabled={loading}
-            className="w-full py-3.5 border-2 border-stone-200 rounded-xl text-sm font-semibold text-stone-700 flex items-center justify-center gap-2.5 hover:bg-stone-50 hover:border-stone-300 transition-all disabled:opacity-50">
+            className="w-full py-3.5 border-2 border-stone-200 dark:border-gray-700 rounded-xl text-sm font-semibold text-stone-700 dark:text-gray-300 flex items-center justify-center gap-2.5 hover:bg-stone-50 dark:hover:bg-gray-800 hover:border-stone-300 dark:hover:border-gray-600 transition-all disabled:opacity-50">
             {loading ? (
               <Loader2 size={16} className="animate-spin" />
             ) : (
@@ -381,33 +346,34 @@ export function LoginPage() {
             Continue with Google
           </button>
 
-          {/* ===== Toggle Login / Register ===== */}
-          <div className="mt-5 p-4 bg-stone-50 rounded-xl border border-stone-200 text-center">
-            <p className="text-sm text-stone-600">
+          {/* Toggle login / register */}
+          <div className="mt-5 p-4 bg-stone-50 dark:bg-gray-800 rounded-xl border border-stone-200 dark:border-gray-700 text-center">
+            <p className="text-sm text-stone-600 dark:text-gray-400">
               {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-              <button onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); clearMessages(); }}
-                className="text-amber-600 font-bold hover:underline">
+              <button
+                onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); clearMessages(); }}
+                className="text-amber-600 dark:text-amber-400 font-bold hover:underline">
                 {mode === 'login' ? 'Create Account (Sign Up)' : 'Sign In'}
               </button>
             </p>
             {mode === 'login' && (
-              <p className="text-[11px] text-stone-400 mt-1">
+              <p className="text-[11px] text-stone-400 dark:text-gray-500 mt-1">
                 ⚡ First time? You need to <strong>Sign Up</strong> first before logging in
               </p>
             )}
           </div>
 
-          {/* Info about becoming artist */}
-          <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
-            <p className="text-xs text-amber-800">
+          {/* Artist hint */}
+          <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl text-center">
+            <p className="text-xs text-amber-800 dark:text-amber-300">
               🎨 <strong>Are you an artist?</strong> Sign up first as a customer, then go to <strong>Profile → Become an Artist</strong> to create your artist profile and start receiving orders!
             </p>
           </div>
 
           {/* Demo hint */}
           {!firebaseReady && (
-            <div className="mt-4 p-3 bg-stone-50 rounded-xl border border-stone-200">
-              <p className="text-[11px] text-stone-500 text-center leading-relaxed">
+            <div className="mt-4 p-3 bg-stone-50 dark:bg-gray-800 rounded-xl border border-stone-200 dark:border-gray-700">
+              <p className="text-[11px] text-stone-500 dark:text-gray-400 text-center leading-relaxed">
                 🔧 <strong>Demo Mode</strong> — Firebase not configured.<br />
                 <strong>Email:</strong> Any email & password works<br />
                 <strong>Google:</strong> Mock sign-in

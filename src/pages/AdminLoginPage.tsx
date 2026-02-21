@@ -23,24 +23,20 @@ export default function AdminLoginPage() {
     setError('')
 
     try {
-      // First authenticate with Firebase
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
       const uid = userCredential.user.uid
 
-      // Check if this user is an admin in Firestore
       const adminsRef = collection(db, 'admins')
       const q = query(adminsRef, where('email', '==', email))
       const snapshot = await getDocs(q)
 
       if (snapshot.empty) {
-        // Not an admin - sign out and show error
         await auth.signOut()
         setError('Access denied. You are not an admin.')
         setLoading(false)
         return
       }
 
-      // Save admin session
       const adminData = snapshot.docs[0].data()
       sessionStorage.setItem('adminSession', JSON.stringify({
         uid,
@@ -50,7 +46,6 @@ export default function AdminLoginPage() {
         loginTime: new Date().toISOString()
       }))
 
-      // Navigate to admin dashboard
       navigate('/admin/dashboard')
     } catch (err: any) {
       console.error('Admin login error:', err)
@@ -69,62 +64,69 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-stone-100 dark:bg-gray-950 flex items-center justify-center p-4 transition-colors">
       <div className="w-full max-w-md">
+
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-600/30">
-            <Shield className="w-8 h-8 text-white" />
+          <div className="w-20 h-20 bg-gradient-to-br from-amber-500 to-orange-600 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-xl shadow-amber-500/30">
+            <Shield className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">HunarHub Admin</h1>
-          <p className="text-gray-400 text-sm mt-1">Admin access only</p>
+          <h1 className="text-3xl font-extrabold text-stone-800 dark:text-white tracking-tight">HunarHub Admin</h1>
+          <p className="text-stone-500 dark:text-gray-400 text-sm mt-2">Authorized personnel only</p>
         </div>
 
-        {/* Login Form */}
-        <div className="bg-gray-800 rounded-2xl p-6 shadow-xl border border-gray-700">
+        {/* Login Card */}
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-7 shadow-xl border border-stone-200 dark:border-gray-700">
+
+          {/* Error */}
           {error && (
-            <div className="bg-red-900/50 border border-red-700 text-red-300 p-3 rounded-lg text-sm mb-4">
+            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-400 p-3 rounded-xl text-sm mb-5 flex items-center gap-2">
+              <Shield className="w-4 h-4 shrink-0" />
               {error}
             </div>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-5">
+            {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
+              <label className="block text-sm font-semibold text-stone-600 dark:text-gray-300 mb-1.5">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="admin@hunarhub.com"
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                className="w-full px-4 py-3 bg-stone-50 dark:bg-gray-800 border border-stone-200 dark:border-gray-700 rounded-xl text-stone-900 dark:text-white placeholder-stone-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all text-sm"
                 onKeyDown={e => e.key === 'Enter' && handleLogin()}
               />
             </div>
 
+            {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
+              <label className="block text-sm font-semibold text-stone-600 dark:text-gray-300 mb-1.5">Password</label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="Enter password"
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 pr-12"
+                  className="w-full px-4 py-3 bg-stone-50 dark:bg-gray-800 border border-stone-200 dark:border-gray-700 rounded-xl text-stone-900 dark:text-white placeholder-stone-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 pr-12 transition-all text-sm"
                   onKeyDown={e => e.key === 'Enter' && handleLogin()}
                 />
                 <button
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 dark:text-gray-500 hover:text-stone-600 dark:hover:text-gray-300 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
 
+            {/* Submit */}
             <button
               onClick={handleLogin}
               disabled={loading}
-              className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-amber-500/20 hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <><Loader2 className="w-5 h-5 animate-spin" /> Verifying...</>
@@ -134,19 +136,20 @@ export default function AdminLoginPage() {
             </button>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-gray-700">
-            <p className="text-gray-500 text-xs text-center">
-              This panel is restricted to authorized administrators only.
+          {/* Footer note */}
+          <div className="mt-6 pt-5 border-t border-stone-100 dark:border-gray-700">
+            <p className="text-stone-400 dark:text-gray-500 text-xs text-center leading-relaxed">
+              🔒 This panel is restricted to authorized administrators only.<br />
               Unauthorized access attempts are logged.
             </p>
           </div>
         </div>
 
-        {/* Back to main app */}
-        <div className="text-center mt-4">
+        {/* Back link */}
+        <div className="text-center mt-5">
           <button
             onClick={() => navigate('/login')}
-            className="text-gray-500 text-sm hover:text-gray-400"
+            className="text-stone-400 dark:text-gray-500 text-sm hover:text-stone-600 dark:hover:text-gray-300 transition-colors"
           >
             ← Back to HunarHub
           </button>

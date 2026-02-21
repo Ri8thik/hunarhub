@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageSquare, Calendar, IndianRupee, Clock, CheckCircle2, XCircle, Truck, Package, Loader2 } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Calendar, IndianRupee, Clock, CheckCircle2, XCircle, Truck, Package, Loader2, Send } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { StatusBadge } from '@/components/StatusBadge';
 import { StarRating } from '@/components/StarRating';
 import { Avatar } from '@/components/Avatar';
 import { cn } from '@/utils/cn';
 import { type OrderStatus, type Order } from '@/types';
-import { getOrderById } from '@/services/firestoreService';
+import { getOrderById, addReview, getArtistReviews, updateArtistRating } from '@/services/firestoreService';
 
 /** Safely format any date value — handles Firestore Timestamps, Date objects, and strings */
 function formatDate(value: unknown): string {
   if (!value) return '—';
-  // Firestore Timestamp: { seconds: number, nanoseconds: number }
   if (typeof value === 'object' && value !== null && 'seconds' in value) {
     return new Date((value as { seconds: number }).seconds * 1000)
       .toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -27,7 +26,7 @@ function formatDate(value: unknown): string {
   return String(value);
 }
 
-/** Safely format currency — guards against undefined/null budget */
+/** Safely format currency */
 function formatBudget(budget: unknown): string {
   const num = Number(budget);
   return isNaN(num) ? '—' : num.toLocaleString('en-IN');
@@ -46,42 +45,69 @@ const statusOrder: OrderStatus[] = ['requested', 'accepted', 'in_progress', 'del
 export function OrderDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { orders, userRole, updateOrderStatus, ordersLoading } = useApp();
+  const { orders, userRole, updateOrderStatus, ordersLoading, currentUserId, currentUserName } = useApp();
 
-  const [showReview, setShowReview] = useState(false);
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewText, setReviewText] = useState('');
+  const [showReview, setShowReview]         = useState(false);
+  const [reviewRating, setReviewRating]     = useState(5);
+  const [reviewText, setReviewText]         = useState('');
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewError, setReviewError]       = useState('');
 
   // Fallback: fetch directly from Firestore if not yet in context
-  const [fetchedOrder, setFetchedOrder] = useState<Order | null>(null);
-  const [fetching, setFetching] = useState(false);
-  const [fetchFailed, setFetchFailed] = useState(false);
+  const [fetchedOrder, setFetchedOrder]     = useState<Order | null>(null);
+  const [fetching, setFetching]             = useState(false);
+  const [fetchFailed, setFetchFailed]       = useState(false);
 
   const orderFromContext = orders.find(o => o.id === id);
 
   useEffect(() => {
-    // Already have it in context — skip fetch
-    if (orderFromContext) return;
-    // Context orders still loading — wait for them first
-    if (ordersLoading) return;
-    // Context finished loading but order not found — fetch directly from Firestore
+    if (orderFromContext) return;   // already in context
+    if (ordersLoading) return;      // wait for context to finish loading
     if (!id) return;
 
     setFetching(true);
     setFetchFailed(false);
     getOrderById(id)
-      .then(data => {
-        if (data) setFetchedOrder(data);
-        else setFetchFailed(true);
-      })
+      .then(data => { if (data) setFetchedOrder(data); else setFetchFailed(true); })
       .catch(() => setFetchFailed(true))
       .finally(() => setFetching(false));
   }, [id, orderFromContext, ordersLoading]);
 
   const order = orderFromContext ?? fetchedOrder;
 
-  // Show spinner while context orders are loading OR during fallback fetch
+  // ── Submit review: save to DB + recalculate artist rating ──
+  const handleSubmitReview = async () => {
+    if (!reviewText.trim()) { setReviewError('Please write a review comment.'); return; }
+    if (!order || !currentUserId) return;
+
+    setSubmittingReview(true);
+    setReviewError('');
+    try {
+      // 1. Save the review document
+      await addReview({
+        artistId: order.artistId,
+        customerId: currentUserId,
+        customerName: currentUserName || 'Customer',
+        rating: reviewRating,
+        comment: reviewText.trim(),
+        createdAt: new Date().toISOString().split('T')[0],
+      });
+
+      // 2. Fetch ALL reviews for this artist and recompute average rating
+      const allReviews = await getArtistReviews(order.artistId);
+      await updateArtistRating(order.artistId, allReviews);
+
+      setReviewSubmitted(true);
+    } catch (err: unknown) {
+      console.error('Error submitting review:', err);
+      const msg = err instanceof Error ? err.message : 'Failed to submit review. Please try again.';
+      setReviewError(msg);
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
   if (ordersLoading || fetching) {
     return (
       <div className="flex items-center justify-center h-64 bg-gray-50 dark:bg-gray-950">
@@ -98,10 +124,8 @@ export function OrderDetailPage() {
       <div className="flex flex-col items-center justify-center h-64 bg-gray-50 dark:bg-gray-950 gap-4">
         <span className="text-4xl">📋</span>
         <p className="text-stone-500 dark:text-gray-400 font-medium">Order not found</p>
-        <button
-          onClick={() => navigate('/orders')}
-          className="px-5 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-semibold hover:bg-amber-700 transition-colors"
-        >
+        <button onClick={() => navigate('/orders')}
+          className="px-5 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-semibold hover:bg-amber-700 transition-colors">
           Back to Orders
         </button>
       </div>
@@ -130,10 +154,8 @@ export function OrderDetailPage() {
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-stone-500 dark:text-gray-400 hover:text-stone-700 dark:hover:text-gray-200 transition-colors"
-        >
+        <button onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-stone-500 dark:text-gray-400 hover:text-stone-700 dark:hover:text-gray-200 transition-colors">
           <ArrowLeft size={18} />
           <span className="text-sm font-medium">Back</span>
         </button>
@@ -155,10 +177,8 @@ export function OrderDetailPage() {
               <h3 className="font-semibold text-stone-800 dark:text-gray-100 mb-4">Order Progress</h3>
               <div className="flex items-center justify-between relative">
                 <div className="absolute top-4 left-0 right-0 h-0.5 bg-stone-200 dark:bg-gray-700" />
-                <div
-                  className="absolute top-4 left-0 h-0.5 bg-amber-600 transition-all"
-                  style={{ width: `${(currentStep / (statusSteps.length - 1)) * 100}%` }}
-                />
+                <div className="absolute top-4 left-0 h-0.5 bg-amber-600 transition-all"
+                  style={{ width: `${(currentStep / (statusSteps.length - 1)) * 100}%` }} />
                 {statusSteps.map((step, i) => {
                   const isCompleted = i <= currentStep;
                   const isCurrent   = i === currentStep;
@@ -167,22 +187,14 @@ export function OrderDetailPage() {
                     <div key={step.status} className="relative flex flex-col items-center z-10">
                       <div className={cn(
                         'w-8 h-8 rounded-full flex items-center justify-center transition-all',
-                        isCompleted
-                          ? 'bg-amber-600 text-white shadow-md'
-                          : 'bg-stone-200 dark:bg-gray-700 text-stone-400 dark:text-gray-500'
+                        isCompleted ? 'bg-amber-600 text-white shadow-md' : 'bg-stone-200 dark:bg-gray-700 text-stone-400 dark:text-gray-500'
                       )}>
                         <Icon size={14} />
                       </div>
                       <span className={cn(
                         'text-[10px] mt-2 font-medium text-center whitespace-nowrap',
-                        isCurrent
-                          ? 'text-amber-700 dark:text-amber-400'
-                          : isCompleted
-                            ? 'text-stone-700 dark:text-gray-300'
-                            : 'text-stone-400 dark:text-gray-600'
-                      )}>
-                        {step.label}
-                      </span>
+                        isCurrent ? 'text-amber-700 dark:text-amber-400' : isCompleted ? 'text-stone-700 dark:text-gray-300' : 'text-stone-400 dark:text-gray-600'
+                      )}>{step.label}</span>
                     </div>
                   );
                 })}
@@ -214,10 +226,8 @@ export function OrderDetailPage() {
                     <item.icon size={14} />
                     <span className="text-xs">{item.label}</span>
                   </div>
-                  <span className={cn(
-                    'text-sm font-semibold',
-                    item.highlight ? 'text-amber-700 dark:text-amber-400' : 'text-stone-700 dark:text-gray-200'
-                  )}>
+                  <span className={cn('text-sm font-semibold',
+                    item.highlight ? 'text-amber-700 dark:text-amber-400' : 'text-stone-700 dark:text-gray-200')}>
                     {item.value}
                   </span>
                 </div>
@@ -231,40 +241,56 @@ export function OrderDetailPage() {
               <h3 className="font-semibold text-stone-800 dark:text-gray-100 mb-3">Reference Images</h3>
               <div className="grid grid-cols-3 gap-3">
                 {order.referenceImages.map((img, i) => (
-                  <img
-                    key={i}
-                    src={img}
-                    alt={`Reference ${i + 1}`}
-                    className="w-full aspect-square object-cover rounded-xl border border-stone-100 dark:border-gray-700"
-                  />
+                  <img key={i} src={img} alt={`Reference ${i + 1}`}
+                    className="w-full aspect-square object-cover rounded-xl border border-stone-100 dark:border-gray-700" />
                 ))}
               </div>
             </div>
           )}
 
-          {/* Write Review */}
+          {/* ── Review Form ── */}
           {showReview && !reviewSubmitted && (
             <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-stone-100 dark:border-gray-700 animate-fade-in-up">
-              <h3 className="font-semibold text-stone-800 dark:text-gray-100 mb-3">⭐ Leave a Review</h3>
-              <div className="flex justify-center mb-3">
+              <h3 className="font-semibold text-stone-800 dark:text-gray-100 mb-1">⭐ Rate Your Experience</h3>
+              <p className="text-xs text-stone-400 dark:text-gray-500 mb-4">Your review helps others find great artists</p>
+
+              {/* Star Rating */}
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-sm text-stone-600 dark:text-gray-400">Rating:</span>
                 <StarRating rating={reviewRating} size={28} showValue={false} interactive onChange={setReviewRating} />
+                <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+                  {reviewRating === 1 ? 'Poor' : reviewRating === 2 ? 'Fair' : reviewRating === 3 ? 'Good' : reviewRating === 4 ? 'Very Good' : 'Excellent'}
+                </span>
               </div>
+
+              {/* Comment */}
               <textarea
-                placeholder="Share your experience..."
+                placeholder="Share your experience with this artist — what did they do well? How was the quality?"
                 value={reviewText}
-                onChange={e => setReviewText(e.target.value)}
-                rows={3}
+                onChange={e => { setReviewText(e.target.value); setReviewError(''); }}
+                rows={4}
                 className="w-full px-4 py-3 bg-stone-50 dark:bg-gray-800 text-stone-800 dark:text-gray-100 dark:placeholder-gray-500 border border-stone-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
               />
+
+              {/* Error */}
+              {reviewError && (
+                <p className="text-sm text-red-600 dark:text-red-400 mt-2">{reviewError}</p>
+              )}
+
+              {/* Submit */}
               <button
-                onClick={() => setReviewSubmitted(true)}
-                className="w-full mt-3 py-3 bg-amber-600 text-white rounded-xl font-semibold text-sm hover:shadow-lg transition-all"
+                onClick={handleSubmitReview}
+                disabled={submittingReview || !reviewText.trim()}
+                className="w-full mt-3 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Submit Review
+                {submittingReview
+                  ? <><Loader2 size={16} className="animate-spin" /> Submitting...</>
+                  : <><Send size={16} /> Submit Review</>}
               </button>
             </div>
           )}
 
+          {/* Review Success */}
           {reviewSubmitted && (
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl p-6 text-center">
               <span className="text-3xl">🌟</span>
@@ -278,29 +304,18 @@ export function OrderDetailPage() {
 
           {/* Contact Card */}
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm border border-stone-100 dark:border-gray-700">
-            <p className="text-xs text-stone-400 dark:text-gray-500 mb-2">
-              {userRole === 'customer' ? 'Artist' : 'Customer'}
-            </p>
+            <p className="text-xs text-stone-400 dark:text-gray-500 mb-2">{userRole === 'customer' ? 'Artist' : 'Customer'}</p>
             <div className="flex items-center gap-3 mb-3">
-              <Avatar
-                name={userRole === 'customer'
-                  ? (order.artistName || 'Artist')
-                  : (order.customerName || 'Customer')}
-                size="lg"
-              />
+              <Avatar name={userRole === 'customer' ? (order.artistName || 'Artist') : (order.customerName || 'Customer')} size="lg" />
               <div>
                 <h3 className="font-semibold text-stone-800 dark:text-gray-100">
-                  {userRole === 'customer'
-                    ? (order.artistName || 'Artist')
-                    : (order.customerName || 'Customer')}
+                  {userRole === 'customer' ? (order.artistName || 'Artist') : (order.customerName || 'Customer')}
                 </h3>
                 <p className="text-xs text-stone-400 dark:text-gray-500">{order.category}</p>
               </div>
             </div>
-            {/* <button
-              onClick={() => navigate('/chat')}
-              className="w-full py-2.5 border-2 border-amber-600 text-amber-600 dark:text-amber-400 dark:border-amber-500 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
-            >
+            {/* <button onClick={() => navigate('/chat')}
+              className="w-full py-2.5 border-2 border-amber-600 text-amber-600 dark:text-amber-400 dark:border-amber-500 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors">
               <MessageSquare size={16} /> Send Message
             </button> */}
           </div>
@@ -324,31 +339,34 @@ export function OrderDetailPage() {
                 </div>
               </div>
             </div>
-            <p className="text-xs text-amber-700 dark:text-amber-400 mt-3">
-              🔒 Escrow protected — Payment held until delivery
-            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-400 mt-3">🔒 Escrow protected — Payment held until delivery</p>
           </div>
 
           {/* Action Buttons */}
           {order.status !== 'rejected' && order.status !== 'completed' && (
             <div className="space-y-2">
               {nextAction && (
-                <button
-                  onClick={nextAction.action}
-                  className="w-full py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-semibold text-sm shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all"
-                >
+                <button onClick={nextAction.action}
+                  className="w-full py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-semibold text-sm shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all">
                   {nextAction.label}
                 </button>
               )}
               {userRole === 'artist' && order.status === 'requested' && (
-                <button
-                  onClick={() => updateOrderStatus(order.id, 'rejected')}
-                  className="w-full py-3 border-2 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-xl font-semibold text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                >
+                <button onClick={() => updateOrderStatus(order.id, 'rejected')}
+                  className="w-full py-3 border-2 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-xl font-semibold text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                   Reject Request
                 </button>
               )}
             </div>
+          )}
+
+          {/* Show review prompt if completed and not yet reviewed */}
+          {order.status === 'completed' && userRole === 'customer' && !showReview && !reviewSubmitted && (
+            <button
+              onClick={() => setShowReview(true)}
+              className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold text-sm shadow-md hover:shadow-lg transition-all">
+              ⭐ Leave a Review
+            </button>
           )}
         </div>
       </div>

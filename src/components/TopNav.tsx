@@ -1,78 +1,197 @@
 import { useNavigate } from 'react-router-dom';
-import { Bell, Search, Palette, Moon, Sun } from 'lucide-react';
+import { Bell, Palette, Moon, Sun } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { cn } from '@/utils/cn';
+
+const styles = `
+  .topnav {
+    background: #ffffff;
+    border-bottom: 1px solid #f1f5f9;
+    padding: 0 1rem;
+    height: 60px;
+    display: flex; align-items: center; gap: 12px;
+    flex-shrink: 0;
+    transition: background 0.3s, border-color 0.3s;
+    position: relative;
+    z-index: 10;
+  }
+  .dark .topnav {
+    background: #0a0f1e;
+    border-color: #1e293b;
+  }
+  @media (min-width: 1024px) {
+    .topnav { padding: 0 2rem; }
+  }
+
+  /* Mobile logo */
+  .tn-logo {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; text-decoration: none;
+  }
+  @media (min-width: 1024px) { .tn-logo { display: none; } }
+
+  .tn-logo-icon {
+    width: 32px; height: 32px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #d97706, #ea580c);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 10px rgba(217,119,6,0.3);
+  }
+  .tn-logo-text {
+    font-size: 1rem; font-weight: 900;
+    background: linear-gradient(135deg, #b45309, #ea580c);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .tn-spacer { flex: 1; }
+
+  /* Role switcher pill */
+  .tn-role-switcher {
+    display: none;
+    background: #f1f5f9;
+    border-radius: 12px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .dark .tn-role-switcher { background: #1e293b; }
+  @media (min-width: 768px) { .tn-role-switcher { display: flex; } }
+
+  .tn-role-btn {
+    padding: 6px 14px;
+    border-radius: 9px;
+    font-size: 0.75rem; font-weight: 700;
+    border: none; cursor: pointer;
+    transition: all 0.2s;
+    color: #64748b;
+    background: transparent;
+  }
+  .dark .tn-role-btn { color: #94a3b8; }
+  .tn-role-btn.active {
+    background: #fff;
+    color: #92400e;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+  .dark .tn-role-btn.active {
+    background: #1e293b;
+    color: #fbbf24;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  /* Icon buttons */
+  .tn-icon-btn {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .dark .tn-icon-btn {
+    background: #1e293b;
+    border-color: #334155;
+  }
+  .tn-icon-btn:hover {
+    background: #e2e8f0;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+  }
+  .dark .tn-icon-btn:hover {
+    background: #334155;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  }
+
+  /* Notification dot */
+  .tn-notif-dot {
+    position: absolute;
+    top: -4px; right: -4px;
+    width: 18px; height: 18px;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.6rem; font-weight: 800; color: #fff;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(239,68,68,0.4);
+  }
+  .dark .tn-notif-dot { border-color: #0a0f1e; }
+
+  /* Avatar */
+  .tn-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #d97706, #ea580c);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 800; color: #fff;
+    cursor: pointer;
+    border: 2px solid rgba(217,119,6,0.3);
+    box-shadow: 0 3px 10px rgba(217,119,6,0.25);
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .tn-avatar:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 14px rgba(217,119,6,0.4);
+  }
+`
 
 export function TopNav() {
   const navigate = useNavigate();
-  const { userRole, currentUserName, switchRole, darkMode, toggleDarkMode } = useApp();
+  const { userRole, currentUserName, switchRole, darkMode, toggleDarkMode, isArtist, artistChecked } = useApp();
 
   return (
-    <header className="bg-white dark:bg-gray-900 border-b border-stone-200 dark:border-gray-700 px-4 lg:px-8 py-3 flex items-center gap-4 shrink-0 transition-colors">
-      {/* Mobile Logo */}
-      <div className="flex items-center gap-2 lg:hidden cursor-pointer" onClick={() => navigate('/')}>
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-600 to-orange-600 flex items-center justify-center">
-          <Palette className="text-white" size={16} />
-        </div>
-        <span className="text-base font-extrabold gradient-text">HunarHub</span>
-      </div>
-
-      <div className="flex-1 sm:hidden" />
-
-      {/* Right Actions */}
-      <div className="flex items-center gap-2">
-        {/* Role Switcher */}
-        <div className="hidden md:flex bg-stone-100 dark:bg-gray-800 rounded-xl p-0.5 ">
-          <button
-            onClick={() => switchRole('customer')}
-            className={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
-              userRole === 'customer'
-                ? 'bg-white dark:bg-gray-700 text-amber-700 dark:text-amber-400 shadow-sm cursor-pointer'
-                : 'text-stone-500 dark:text-gray-400 cursor-pointer'
-            )}
-          >
-            🛒 Customer
-          </button>
-          <button
-            onClick={() => switchRole('artist')}
-            className={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
-              userRole === 'artist'
-                ? 'bg-white dark:bg-gray-700 text-amber-700 dark:text-amber-400 shadow-sm cursor-pointer'
-                : 'text-stone-500 dark:text-gray-400 cursor-pointer'
-            )}
-          >
-            🎨 Artist
-          </button>
+    <>
+      <style>{styles}</style>
+      <header className="topnav">
+        {/* Mobile Logo */}
+        <div className="tn-logo" onClick={() => navigate('/')}>
+          <div className="tn-logo-icon">
+            <Palette size={16} color="#fff" />
+          </div>
+          <span className="tn-logo-text">HunarHub</span>
         </div>
 
-        {/* Dark Mode Toggle */}
-        <button
-          onClick={toggleDarkMode}
-          className="w-9 h-9 rounded-xl bg-stone-100 dark:bg-gray-800 flex items-center justify-center hover:bg-stone-200 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-          title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-        >
+        <div className="tn-spacer" />
+
+        {/* Role Switcher — only if has artist profile */}
+        {artistChecked && isArtist && (
+          <div className="tn-role-switcher">
+            <button
+              className={`tn-role-btn ${userRole === 'customer' ? 'active' : ''}`}
+              onClick={() => switchRole('customer')}
+            >
+              🛒 Customer
+            </button>
+            <button
+              className={`tn-role-btn ${userRole === 'artist' ? 'active' : ''}`}
+              onClick={() => switchRole('artist')}
+            >
+              🎨 Artist
+            </button>
+          </div>
+        )}
+
+        {/* Dark Mode */}
+        <button className="tn-icon-btn" onClick={toggleDarkMode} title={darkMode ? 'Light Mode' : 'Dark Mode'}>
           {darkMode
-            ? <Sun size={18} className="text-amber-400" />
-            : <Moon size={18} className="text-stone-600" />
+            ? <Sun size={16} color="#fbbf24" />
+            : <Moon size={16} color="#64748b" />
           }
         </button>
 
         {/* Notifications */}
-        <button
-          onClick={() => navigate('/notifications')}
-          className="relative w-9 h-9 rounded-xl bg-stone-100 dark:bg-gray-800 flex items-center justify-center hover:bg-stone-200 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-        >
-          <Bell size={18} className="text-stone-600 dark:text-gray-300" />
-          <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-red-500 rounded-full text-[9px] text-white font-bold flex items-center justify-center">3</span>
+        <button className="tn-icon-btn" onClick={() => navigate('/notifications')}>
+          <Bell size={16} color={darkMode ? '#94a3b8' : '#64748b'} />
+          <span className="tn-notif-dot">3</span>
         </button>
 
         {/* Avatar */}
-        <button onClick={() => navigate('/profile')} className="w-9 h-9 rounded-full bg-amber-600 flex items-center justify-center text-white font-bold text-xs cursor-pointer">
-          {currentUserName.split(' ').map(n => n[0]).join('')}
+        <button className="tn-avatar" onClick={() => navigate('/profile')}>
+          {currentUserName.split(' ').map(n => n[0]).join('').slice(0, 2)}
         </button>
-      </div>
-    </header>
+      </header>
+    </>
   );
 }

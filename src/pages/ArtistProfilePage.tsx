@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useApp } from '@/context/AppContext'
 import { getArtistById, getArtistReviews, addReview, updateArtistRating } from '@/services/firestoreService'
-import { ArrowLeft, Star, MapPin, Clock, CheckCircle, MessageCircle, Loader2, X, Send } from 'lucide-react'
+import { ArrowLeft, Star, MapPin, Clock, CheckCircle, MessageCircle, Loader2, X, Send, Briefcase, Award, Image } from 'lucide-react'
+
 interface Review {
   id: string
   customerName?: string
@@ -37,6 +38,474 @@ interface ArtistData {
   responseTime?: string
 }
 
+const styles = `
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes shimmer {
+    0%   { background-position: -200% center; }
+    100% { background-position: 200% center; }
+  }
+  @keyframes pulse-ring {
+    0%   { transform: scale(1);   opacity: 0.6; }
+    100% { transform: scale(1.8); opacity: 0; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-6px); }
+  }
+  @keyframes starPop {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.4); }
+    100% { transform: scale(1); }
+  }
+
+  .ap-hero {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #92400e 0%, #b45309 30%, #d97706 65%, #ea580c 100%);
+    padding: 1.5rem;
+  }
+  .ap-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Ccircle cx='30' cy='30' r='20'/%3E%3Ccircle cx='0' cy='0' r='10'/%3E%3Ccircle cx='60' cy='60' r='10'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+  .ap-hero::after {
+    content: '';
+    position: absolute;
+    bottom: -2px; left: 0; right: 0;
+    height: 40px;
+    background: var(--ap-bg, #f9fafb);
+    clip-path: ellipse(55% 100% at 50% 100%);
+  }
+
+  .ap-avatar {
+    width: 88px; height: 88px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(8px);
+    border: 3px solid rgba(255,255,255,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem; font-weight: 800; color: #fff;
+    position: relative;
+    flex-shrink: 0;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    animation: fadeInUp 0.5s ease both;
+  }
+  .ap-avatar-ring {
+    position: absolute; inset: -6px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.3);
+    animation: pulse-ring 2s ease-out infinite;
+  }
+
+  .ap-name {
+    font-size: 1.5rem; font-weight: 800;
+    color: #fff; line-height: 1.2;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    animation: fadeInUp 0.5s 0.1s ease both;
+  }
+
+  .ap-badge-verified {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 99px;
+    padding: 2px 10px;
+    font-size: 0.7rem; font-weight: 700;
+    color: #fff; letter-spacing: 0.05em;
+    animation: fadeInUp 0.5s 0.15s ease both;
+  }
+
+  .ap-stats-bar {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    background: #fff;
+    border-bottom: 1px solid #f3f4f6;
+    position: relative; z-index: 1;
+  }
+  .dark .ap-stats-bar { background: #111827; border-color: #1f2937; }
+
+  .ap-stat-item {
+    padding: 1rem 0.5rem;
+    text-align: center;
+    position: relative;
+    animation: fadeInUp 0.4s ease both;
+  }
+  .ap-stat-item + .ap-stat-item::before {
+    content: '';
+    position: absolute; left: 0; top: 20%; bottom: 20%;
+    width: 1px; background: #e5e7eb;
+  }
+  .dark .ap-stat-item + .ap-stat-item::before { background: #374151; }
+
+  .ap-stat-num {
+    font-size: 1.4rem; font-weight: 800;
+    color: #1f2937; line-height: 1;
+    margin-bottom: 4px;
+  }
+  .dark .ap-stat-num { color: #f9fafb; }
+  .ap-stat-num.gold { color: #d97706; }
+  .ap-stat-label {
+    font-size: 0.65rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: #9ca3af;
+  }
+
+  .ap-section {
+    background: #fff;
+    border-radius: 16px;
+    padding: 1.25rem;
+    border: 1px solid #f3f4f6;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    animation: fadeInUp 0.5s ease both;
+    position: relative;
+    overflow: hidden;
+  }
+  .dark .ap-section { background: #111827; border-color: #1f2937; }
+
+  .ap-section-title {
+    font-size: 0.8rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: #d97706;
+    margin-bottom: 0.75rem;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ap-section-title::after {
+    content: '';
+    flex: 1; height: 1px;
+    background: linear-gradient(to right, #fde68a, transparent);
+  }
+  .dark .ap-section-title::after { background: linear-gradient(to right, #78350f, transparent); }
+
+  .ap-bio-text {
+    color: #4b5563; font-size: 0.9rem; line-height: 1.7;
+    font-style: italic;
+  }
+  .dark .ap-bio-text { color: #9ca3af; }
+
+  .ap-skill-tag {
+    display: inline-flex; align-items: center;
+    padding: 6px 14px;
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border: 1px solid #fde68a;
+    border-radius: 99px;
+    font-size: 0.8rem; font-weight: 600;
+    color: #92400e;
+    transition: all 0.2s ease;
+    cursor: default;
+  }
+  .dark .ap-skill-tag {
+    background: linear-gradient(135deg, #451a03, #3b1206);
+    border-color: #78350f;
+    color: #fcd34d;
+  }
+  .ap-skill-tag:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(217,119,6,0.25);
+  }
+
+  .ap-price-card {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border: 1px solid #fde68a;
+    border-radius: 14px; padding: 1.1rem;
+    position: relative; overflow: hidden;
+  }
+  .dark .ap-price-card {
+    background: linear-gradient(135deg, #1c0a00 0%, #1f0e00 100%);
+    border-color: #78350f;
+  }
+  .ap-price-card::before {
+    content: '₹';
+    position: absolute; right: -10px; top: -10px;
+    font-size: 5rem; font-weight: 900;
+    color: rgba(217,119,6,0.07);
+    line-height: 1;
+    pointer-events: none;
+  }
+  .ap-price-amount {
+    font-size: 1.8rem; font-weight: 900;
+    color: #b45309;
+    line-height: 1;
+  }
+  .dark .ap-price-amount { color: #fbbf24; }
+
+  .ap-avail-card {
+    border-radius: 14px; padding: 1.1rem;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+  }
+  .dark .ap-avail-card { background: #111827; border-color: #1f2937; }
+
+  .ap-avail-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    position: relative;
+  }
+  .ap-avail-dot.available { background: #22c55e; }
+  .ap-avail-dot.available::after {
+    content: '';
+    position: absolute; inset: -4px;
+    border-radius: 50%;
+    background: rgba(34,197,94,0.3);
+    animation: pulse-ring 1.5s ease-out infinite;
+  }
+  .ap-avail-dot.busy { background: #ef4444; }
+
+  .ap-tab-bar {
+    display: flex; gap: 4px;
+    background: #f3f4f6;
+    border-radius: 14px; padding: 4px;
+    margin-bottom: 1rem;
+  }
+  .dark .ap-tab-bar { background: #1f2937; }
+
+  .ap-tab-btn {
+    flex: 1; padding: 10px 8px;
+    border-radius: 10px;
+    font-size: 0.82rem; font-weight: 600;
+    border: none; cursor: pointer;
+    transition: all 0.25s ease;
+    color: #6b7280;
+    background: transparent;
+  }
+  .dark .ap-tab-btn { color: #9ca3af; }
+  .ap-tab-btn.active {
+    background: #fff;
+    color: #b45309;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .dark .ap-tab-btn.active {
+    background: #374151;
+    color: #fbbf24;
+  }
+
+  .ap-portfolio-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  @media (min-width: 768px) {
+    .ap-portfolio-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .ap-portfolio-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 14px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    background: linear-gradient(#fff, #fff) padding-box,
+                linear-gradient(135deg, #fde68a, #fed7aa) border-box;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .dark .ap-portfolio-item {
+    background: linear-gradient(#111827, #111827) padding-box,
+                linear-gradient(135deg, #78350f, #7c2d12) border-box;
+  }
+  .ap-portfolio-item:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 12px 32px rgba(217,119,6,0.25);
+  }
+  .ap-portfolio-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%);
+    opacity: 0; transition: opacity 0.3s ease;
+    display: flex; align-items: flex-end; padding: 10px;
+  }
+  .ap-portfolio-item:hover .ap-portfolio-overlay { opacity: 1; }
+
+  .ap-review-card {
+    background: #fff;
+    border: 1px solid #f3f4f6;
+    border-radius: 14px; padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    animation: fadeInUp 0.4s ease both;
+    transition: box-shadow 0.2s;
+  }
+  .dark .ap-review-card { background: #111827; border-color: #1f2937; }
+  .ap-review-card:hover { box-shadow: 0 6px 20px rgba(217,119,6,0.12); }
+
+  .ap-reviewer-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #fde68a, #fb923c);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem; font-weight: 800;
+    color: #92400e;
+    flex-shrink: 0;
+  }
+
+  .ap-write-review {
+    background: linear-gradient(135deg, #fffbeb 0%, #fff7ed 100%);
+    border: 1.5px solid #fde68a;
+    border-radius: 16px; padding: 1.25rem;
+  }
+  .dark .ap-write-review {
+    background: linear-gradient(135deg, #1c0a00, #1f0e00);
+    border-color: #78350f;
+  }
+
+  .ap-star-interactive {
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+  .ap-star-interactive:hover { transform: scale(1.3); }
+  .ap-star-interactive.active { animation: starPop 0.25s ease; }
+
+  .ap-textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    background: #fff;
+    color: #1f2937;
+    resize: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+  }
+  .ap-textarea:focus {
+    outline: none;
+    border-color: #d97706;
+    box-shadow: 0 0 0 3px rgba(217,119,6,0.15);
+  }
+  .dark .ap-textarea {
+    background: #1f2937; border-color: #374151; color: #f9fafb;
+  }
+  .dark .ap-textarea:focus { border-color: #d97706; }
+  .ap-textarea::placeholder { color: #9ca3af; }
+
+  .ap-submit-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 22px;
+    background: linear-gradient(135deg, #d97706, #ea580c);
+    color: #fff;
+    border: none; border-radius: 12px;
+    font-size: 0.85rem; font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(217,119,6,0.35);
+  }
+  .ap-submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(217,119,6,0.45);
+  }
+  .ap-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .ap-cta-bar {
+    position: sticky; bottom: 16px;
+    display: flex; gap: 10px;
+    padding: 0 1rem;
+    animation: fadeInUp 0.5s 0.3s ease both;
+  }
+  .ap-cta-main {
+    flex: 1; padding: 15px 20px;
+    background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
+    color: #fff; border: none; border-radius: 16px;
+    font-size: 1rem; font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(217,119,6,0.4);
+    transition: all 0.25s ease;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    letter-spacing: 0.01em;
+  }
+  .ap-cta-main:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 28px rgba(217,119,6,0.55);
+  }
+  .ap-cta-chat {
+    width: 56px; height: 56px;
+    border: 2.5px solid #d97706;
+    background: #fff; color: #d97706;
+    border-radius: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.25s ease;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(217,119,6,0.15);
+  }
+  .dark .ap-cta-chat { background: #111827; }
+  .ap-cta-chat:hover {
+    background: #d97706; color: #fff;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 18px rgba(217,119,6,0.4);
+  }
+
+  .ap-image-modal {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 50;
+    display: flex; align-items: center; justify-content: center;
+    padding: 1rem;
+    animation: fadeIn 0.2s ease;
+    backdrop-filter: blur(8px);
+  }
+  .ap-modal-close {
+    position: absolute; top: 16px; right: 16px;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 50%; width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .ap-modal-close:hover { background: rgba(255,255,255,0.3); }
+
+  .ap-loading {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    height: 100%;
+    gap: 12px;
+  }
+  .ap-loading-icon {
+    width: 56px; height: 56px;
+    background: linear-gradient(135deg, #d97706, #ea580c);
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem;
+    animation: float 2s ease-in-out infinite;
+    box-shadow: 0 8px 24px rgba(217,119,6,0.3);
+  }
+
+  .ap-empty-state {
+    text-align: center; padding: 2.5rem 1rem;
+  }
+  .ap-empty-icon {
+    font-size: 2.5rem; margin-bottom: 0.75rem;
+    animation: float 3s ease-in-out infinite;
+    display: block;
+  }
+  .ap-empty-text { color: #6b7280; font-size: 0.9rem; }
+  .dark .ap-empty-text { color: #6b7280; }
+
+  .ap-success-banner {
+    display: flex; align-items: center; gap: 10px;
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    border: 1px solid #6ee7b7;
+    border-radius: 12px; padding: 12px 16px;
+    color: #065f46; font-weight: 600; font-size: 0.9rem;
+  }
+  .dark .ap-success-banner {
+    background: linear-gradient(135deg, #064e3b, #065f46);
+    color: #6ee7b7; border-color: #059669;
+  }
+
+  .ap-info-row {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.82rem; color: rgba(255,255,255,0.8);
+  }
+  .ap-info-row + .ap-info-row { margin-top: 4px; }
+`
+
 export default function ArtistProfilePage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -65,18 +534,10 @@ export default function ArtistProfilePage() {
         comment: reviewComment.trim(),
         createdAt: new Date().toISOString().split('T')[0]
       }
-
-      // 1. Save the review to Firestore
       await addReview(reviewData)
-
-      // 2. Build the full list of reviews (existing + new)
       const newReview = { id: 'new-' + Date.now(), ...reviewData }
       const updatedReviews = [newReview, ...reviews]
-
-      // 3. Recalculate average rating from ALL reviews and persist to DB
       const { newRating, newCount } = await updateArtistRating(artist.id, updatedReviews)
-
-      // 4. Update local state so UI reflects immediately
       setReviews(updatedReviews)
       setArtist(prev => prev ? { ...prev, rating: newRating, reviewCount: newCount } : null)
       setReviewRating(0)
@@ -96,10 +557,8 @@ export default function ArtistProfilePage() {
       if (!id) return
       try {
         const data = await getArtistById(id)
-        console.log('Artist data from Firestore:', data)
         if (data) {
           setArtist(data as unknown as ArtistData)
-          console.log('Portfolio items:', (data as any).portfolio?.length || 0)
           const rev = await getArtistReviews(id)
           setReviews(rev as unknown as Review[])
         }
@@ -114,331 +573,382 @@ export default function ArtistProfilePage() {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-10 h-10 animate-spin text-amber-600 mx-auto mb-3" />
-          <p className="text-gray-500">Loading artist profile...</p>
+      <>
+        <style>{styles}</style>
+        <div className="ap-loading">
+          <div className="ap-loading-icon">🎨</div>
+          <Loader2 className="w-5 h-5 animate-spin" style={{ color: '#d97706' }} />
+          <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>Loading artist profile...</p>
         </div>
-      </div>
+      </>
     )
   }
 
   if (!artist) {
     return (
-      <div className="h-full flex items-center justify-center p-6">
-        <div className="text-center">
-          <p className="text-gray-500 mb-4">Artist not found</p>
-          <button onClick={() => navigate(-1)} className="px-6 py-3 bg-amber-600 text-white rounded-xl font-semibold">
-            Go Back
-          </button>
+      <>
+        <style>{styles}</style>
+        <div className="ap-loading">
+          <span style={{ fontSize: '3rem' }}>🔍</span>
+          <p style={{ color: '#6b7280' }}>Artist not found</p>
+          <button onClick={() => navigate(-1)} className="ap-submit-btn">Go Back</button>
         </div>
-      </div>
+      </>
     )
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-950 transition-colors">
-      {selectedImage && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
-          <button className="absolute top-4 right-4 text-white p-2 hover:bg-white/20 rounded-full" onClick={() => setSelectedImage(null)}>
-            <X className="w-6 h-6" />
-          </button>
-          <img src={selectedImage} alt="Portfolio" className="max-w-full max-h-full object-contain rounded-lg" onClick={e => e.stopPropagation()} />
-        </div>
-      )}
+    <>
+      <style>{styles}</style>
+      <div className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-950 transition-colors">
 
-      <div className="bg-gradient-to-r from-amber-600 to-orange-600 text-white p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => navigate(-1)} className="p-2 hover:bg-white/20 rounded-lg">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h1 className="text-xl font-bold">Artist Profile</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center text-3xl font-bold">
-            {artist.name.charAt(0).toUpperCase()}
+        {/* Image Modal */}
+        {selectedImage && (
+          <div className="ap-image-modal" onClick={() => setSelectedImage(null)}>
+            <button className="ap-modal-close" onClick={() => setSelectedImage(null)}>
+              <X style={{ width: 18, height: 18 }} />
+            </button>
+            <img
+              src={selectedImage}
+              alt="Portfolio"
+              style={{ maxWidth: '100%', maxHeight: '90vh', objectFit: 'contain', borderRadius: 12 }}
+              onClick={e => e.stopPropagation()}
+            />
           </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-bold">{artist.name}</h2>
-              {artist.verified && <CheckCircle className="w-5 h-5 text-amber-200" />}
+        )}
+
+        {/* Hero Header */}
+        <div className="ap-hero">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, position: 'relative', zIndex: 1 }}>
+            <button
+              onClick={() => navigate(-1)}
+              style={{
+                background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)',
+                borderRadius: 10, padding: '8px', display: 'flex', cursor: 'pointer', color: '#fff',
+                backdropFilter: 'blur(4px)', transition: 'background 0.2s'
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.25)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
+            >
+              <ArrowLeft style={{ width: 18, height: 18 }} />
+            </button>
+            <span style={{ color: '#fff', fontWeight: 700, fontSize: '1rem', letterSpacing: '0.02em' }}>Artist Profile</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, position: 'relative', zIndex: 1, paddingBottom: 28 }}>
+            <div className="ap-avatar">
+              <div className="ap-avatar-ring" />
+              {artist.name.charAt(0).toUpperCase()}
             </div>
-            {artist.location && (
-              <p className="flex items-center gap-1 text-amber-100 mt-1">
-                <MapPin className="w-4 h-4" /> {artist.location}
-              </p>
-            )}
-            <div className="flex items-center gap-3 mt-2">
-              <span className="flex items-center gap-1 text-sm">
-                <Star className="w-4 h-4 fill-amber-300 text-amber-300" />
-                {artist.rating?.toFixed(1) || '0.0'}
-              </span>
+            <div style={{ flex: 1 }}>
+              <div className="ap-name">{artist.name}</div>
+              {artist.verified && (
+                <div className="ap-badge-verified" style={{ marginTop: 4, marginBottom: 6 }}>
+                  <CheckCircle style={{ width: 11, height: 11 }} />
+                  Verified Artist
+                </div>
+              )}
+              {artist.location && (
+                <div className="ap-info-row">
+                  <MapPin style={{ width: 13, height: 13 }} />
+                  {artist.location}
+                </div>
+              )}
               {artist.responseTime && (
-                <span className="flex items-center gap-1 text-sm text-amber-200">
-                  <Clock className="w-3 h-3" /> {artist.responseTime}
+                <div className="ap-info-row">
+                  <Clock style={{ width: 12, height: 12 }} />
+                  Responds {artist.responseTime}
+                </div>
+              )}
+              <div className="ap-info-row" style={{ marginTop: 6 }}>
+                <Star style={{ width: 13, height: 13, fill: '#fbbf24', color: '#fbbf24' }} />
+                <span style={{ fontWeight: 700, color: '#fff' }}>{artist.rating?.toFixed(1) || '0.0'}</span>
+                <span style={{ color: 'rgba(255,255,255,0.65)' }}>({artist.reviewCount || reviews.length} reviews)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Bar */}
+        <div className="ap-stats-bar">
+          {[
+            { icon: <Briefcase style={{ width: 14, height: 14, color: '#d97706' }} />, value: artist.completedOrders || 0, label: 'Orders', gold: false },
+            { icon: <Star style={{ width: 14, height: 14, fill: '#d97706', color: '#d97706' }} />, value: artist.rating?.toFixed(1) || '0.0', label: 'Rating', gold: true },
+            { icon: <Award style={{ width: 14, height: 14, color: '#d97706' }} />, value: artist.reviewCount || reviews.length, label: 'Reviews', gold: false },
+            { icon: <Image style={{ width: 14, height: 14, color: '#d97706' }} />, value: artist.portfolio?.length || 0, label: 'Works', gold: false },
+          ].map((stat, i) => (
+            <div key={i} className="ap-stat-item" style={{ animationDelay: `${i * 0.07}s` }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 3 }}>{stat.icon}</div>
+              <div className={`ap-stat-num ${stat.gold ? 'gold' : ''}`}>{stat.value}</div>
+              <div className="ap-stat-label">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+          {/* About */}
+          {artist.bio && (
+            <div className="ap-section" style={{ animationDelay: '0.1s' }}>
+              <div className="ap-section-title">
+                <span>✦</span> About
+              </div>
+              <p className="ap-bio-text">"{artist.bio}"</p>
+            </div>
+          )}
+
+          {/* Skills */}
+          {artist.skills && artist.skills.length > 0 && (
+            <div className="ap-section" style={{ animationDelay: '0.15s' }}>
+              <div className="ap-section-title">
+                <span>✦</span> Skills & Expertise
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {artist.skills.map((skill, i) => (
+                  <span key={i} className="ap-skill-tag">{skill}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Pricing & Availability */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="ap-price-card">
+              <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#b45309', marginBottom: 6 }}>
+                Starting at
+              </div>
+              <div className="ap-price-amount">₹{artist.priceRange?.min || 0}</div>
+              {artist.priceRange?.max && (
+                <div style={{ fontSize: '0.75rem', color: '#78716c', marginTop: 4 }}>
+                  Up to ₹{artist.priceRange.max}
+                </div>
+              )}
+            </div>
+            <div className="ap-avail-card">
+              <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9ca3af', marginBottom: 8 }}>
+                Availability
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className={`ap-avail-dot ${artist.availability === 'available' ? 'available' : 'busy'}`} />
+                <span style={{
+                  fontSize: '0.88rem', fontWeight: 700,
+                  color: artist.availability === 'available' ? '#16a34a' : '#dc2626'
+                }}>
+                  {artist.availability === 'available' ? 'Available' : 'Busy'}
                 </span>
+              </div>
+              {artist.joinedDate && (
+                <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 8 }}>
+                  Joined {artist.joinedDate}
+                </div>
               )}
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-4 bg-white dark:bg-gray-900 border-b dark:border-gray-700">
-        <div className="p-4 text-center">
-          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{artist.completedOrders || 0}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Orders</p>
-        </div>
-        <div className="p-4 text-center border-l dark:border-gray-700">
-          <p className="text-xl font-bold text-amber-600 flex items-center justify-center gap-1">
-            <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
-            {artist.rating?.toFixed(1) || '0.0'}
-          </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Rating</p>
-        </div>
-        <div className="p-4 text-center border-l dark:border-gray-700">
-          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{artist.reviewCount || reviews.length}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Reviews</p>
-        </div>
-        <div className="p-4 text-center border-l dark:border-gray-700">
-          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{artist.portfolio?.length || 0}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Portfolio</p>
-        </div>
-      </div>
-
-      <div className="mx-auto p-6 space-y-6">
-        {artist.bio && (
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border dark:border-gray-700">
-            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">About</h3>
-            <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{artist.bio}</p>
+          {/* Tab Switch */}
+          <div className="ap-tab-bar">
+            <button
+              className={`ap-tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
+              onClick={() => setActiveTab('portfolio')}
+            >
+              🖼 Portfolio ({artist.portfolio?.length || 0})
+            </button>
+            <button
+              className={`ap-tab-btn ${activeTab === 'reviews' ? 'active' : ''}`}
+              onClick={() => setActiveTab('reviews')}
+            >
+              ⭐ Reviews ({reviews.length})
+            </button>
           </div>
-        )}
 
-        {artist.skills && artist.skills.length > 0 && (
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border dark:border-gray-700">
-            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-3">Skills</h3>
-            <div className="flex flex-wrap gap-2">
-              {artist.skills.map((skill, i) => (
-                <span key={i} className="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-sm font-medium border border-amber-200 dark:border-amber-800">
-                  {skill}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border dark:border-gray-700">
-            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Pricing</h3>
-            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">₹{artist.priceRange?.min || 0}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Starting price</p>
-            {artist.priceRange?.max && (
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Up to ₹{artist.priceRange.max}</p>
-            )}
-          </div>
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border dark:border-gray-700">
-            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">Availability</h3>
-            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
-              artist.availability === 'available'
-                ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800'
-                : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
-            }`}>
-              <div className={`w-2 h-2 rounded-full ${artist.availability === 'available' ? 'bg-green-500' : 'bg-red-500'}`} />
-              {artist.availability === 'available' ? 'Available' : 'Busy'}
-            </div>
-          </div>
-        </div>
-
-        {/* Portfolio / Reviews Tab Switch */}
-        <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
-          <button
-            onClick={() => setActiveTab('portfolio')}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-              activeTab === 'portfolio'
-                ? 'bg-white dark:bg-gray-700 text-amber-700 dark:text-amber-400 shadow-sm'
-                : 'text-gray-500 dark:text-gray-400'
-            }`}
-          >
-            Portfolio ({artist.portfolio?.length || 0})
-          </button>
-          <button
-            onClick={() => setActiveTab('reviews')}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-              activeTab === 'reviews'
-                ? 'bg-white dark:bg-gray-700 text-amber-700 dark:text-amber-400 shadow-sm'
-                : 'text-gray-500 dark:text-gray-400'
-            }`}
-          >
-            Reviews ({reviews.length})
-          </button>
-        </div>
-
-        {activeTab === 'portfolio' && (
-          <div>
-            {artist.portfolio && artist.portfolio.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {artist.portfolio.map((item, i) => (
-                  <div
-                    key={item.id || i}
-                    className="relative aspect-square rounded-xl overflow-hidden cursor-pointer group border border-gray-100 dark:border-gray-700"
-                    onClick={() => { if (item.imageUrl) setSelectedImage(item.imageUrl) }}
-                  >
-                    {item.imageUrl ? (
-                      <>
-                        <img
-                          src={item.imageUrl}
-                          alt={item.title || `Artwork ${i + 1}`}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-end">
-                          <div className="w-full p-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                            <p className="text-white text-xs font-medium truncate">{item.title}</p>
-                            <p className="text-white/70 text-xs">{item.category}</p>
+          {/* Portfolio Tab */}
+          {activeTab === 'portfolio' && (
+            <div>
+              {artist.portfolio && artist.portfolio.length > 0 ? (
+                <div className="ap-portfolio-grid">
+                  {artist.portfolio.map((item, i) => (
+                    <div
+                      key={item.id || i}
+                      className="ap-portfolio-item"
+                      style={{ animationDelay: `${i * 0.06}s` }}
+                      onClick={() => { if (item.imageUrl) setSelectedImage(item.imageUrl) }}
+                    >
+                      {item.imageUrl ? (
+                        <>
+                          <img
+                            src={item.imageUrl}
+                            alt={item.title || `Artwork ${i + 1}`}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
+                            onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.08)')}
+                            onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+                          />
+                          <div className="ap-portfolio-overlay">
+                            <div>
+                              <div style={{ color: '#fff', fontSize: '0.78rem', fontWeight: 700, lineHeight: 1.2 }}>{item.title}</div>
+                              <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.7rem' }}>{item.category}</div>
+                            </div>
                           </div>
+                        </>
+                      ) : (
+                        <div style={{
+                          width: '100%', height: '100%',
+                          background: 'linear-gradient(135deg, #fef3c7, #fed7aa)',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0.75rem'
+                        }}>
+                          <span style={{ fontSize: '2rem', marginBottom: 6 }}>🎨</span>
+                          <p style={{ fontSize: '0.72rem', fontWeight: 700, color: '#92400e', textAlign: 'center' }}>{item.title}</p>
+                          <p style={{ fontSize: '0.68rem', color: '#b45309' }}>{item.category}</p>
                         </div>
-                      </>
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 flex flex-col items-center justify-center p-3">
-                        <span className="text-3xl mb-2">🎨</span>
-                        <p className="text-xs text-amber-800 dark:text-amber-300 font-medium text-center truncate w-full">{item.title}</p>
-                        <p className="text-xs text-amber-600 dark:text-amber-400">{item.category}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-10">
-                <span className="text-4xl mb-3 block">🖼️</span>
-                <p className="text-gray-500 dark:text-gray-400">No portfolio items yet</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'reviews' && (
-          <div className="space-y-4">
-            {/* Write a Review Form */}
-            {currentUserId && currentUserId !== artist.id && (
-              <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
-                <h4 className="font-bold text-gray-900 dark:text-gray-100 mb-3">Write a Review</h4>
-
-                {reviewSuccess ? (
-                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 p-3 rounded-lg">
-                    <CheckCircle className="w-5 h-5" />
-                    <span className="font-medium">Review submitted successfully!</span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-1 mb-3">
-                      <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Rating:</span>
-                      {[1, 2, 3, 4, 5].map(star => (
-                        <button
-                          key={star}
-                          onClick={() => setReviewRating(star)}
-                          onMouseEnter={() => setReviewHover(star)}
-                          onMouseLeave={() => setReviewHover(0)}
-                          className="p-0.5 transition-transform hover:scale-110"
-                        >
-                          <Star className={`w-6 h-6 transition-colors ${
-                            star <= (reviewHover || reviewRating) ? 'fill-amber-500 text-amber-500' : 'text-gray-300 dark:text-gray-600'
-                          }`} />
-                        </button>
-                      ))}
-                      {reviewRating > 0 && (
-                        <span className="text-sm text-amber-600 dark:text-amber-400 font-medium ml-2">
-                          {reviewRating === 1 ? 'Poor' : reviewRating === 2 ? 'Fair' : reviewRating === 3 ? 'Good' : reviewRating === 4 ? 'Very Good' : 'Excellent'}
-                        </span>
                       )}
                     </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="ap-empty-state">
+                  <span className="ap-empty-icon">🖼️</span>
+                  <p className="ap-empty-text">No portfolio items yet</p>
+                </div>
+              )}
+            </div>
+          )}
 
-                    <textarea
-                      value={reviewComment}
-                      onChange={e => setReviewComment(e.target.value)}
-                      placeholder="Share your experience with this artist..."
-                      rows={3}
-                      className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
-                    />
+          {/* Reviews Tab */}
+          {activeTab === 'reviews' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-                    <div className="flex justify-end mt-3">
-                      <button
-                        onClick={handleSubmitReview}
-                        disabled={!reviewRating || !reviewComment.trim() || submittingReview}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {submittingReview ? (
-                          <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
-                        ) : (
-                          <><Send className="w-4 h-4" /> Submit Review</>
-                        )}
-                      </button>
+              {/* Write a Review */}
+              {currentUserId && currentUserId !== artist.id && (
+                <div className="ap-write-review">
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#b45309', marginBottom: 12 }}>
+                    ✍ Write a Review
+                  </div>
+                  {reviewSuccess ? (
+                    <div className="ap-success-banner">
+                      <CheckCircle style={{ width: 18, height: 18 }} />
+                      Review submitted successfully!
                     </div>
-                  </>
-                )}
-              </div>
-            )}
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 12 }}>
+                        <span style={{ fontSize: '0.8rem', color: '#6b7280', marginRight: 4 }}>Rating:</span>
+                        {[1, 2, 3, 4, 5].map(star => (
+                          <button
+                            key={star}
+                            className={`ap-star-interactive ${star <= reviewRating ? 'active' : ''}`}
+                            onClick={() => setReviewRating(star)}
+                            onMouseEnter={() => setReviewHover(star)}
+                            onMouseLeave={() => setReviewHover(0)}
+                            style={{ background: 'none', border: 'none', padding: '2px', cursor: 'pointer' }}
+                          >
+                            <Star style={{
+                              width: 26, height: 26,
+                              fill: star <= (reviewHover || reviewRating) ? '#f59e0b' : 'none',
+                              color: star <= (reviewHover || reviewRating) ? '#f59e0b' : '#d1d5db',
+                              transition: 'all 0.15s'
+                            }} />
+                          </button>
+                        ))}
+                        {reviewRating > 0 && (
+                          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#d97706', marginLeft: 6 }}>
+                            {['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][reviewRating]}
+                          </span>
+                        )}
+                      </div>
+                      <textarea
+                        className="ap-textarea"
+                        value={reviewComment}
+                        onChange={e => setReviewComment(e.target.value)}
+                        placeholder="Share your experience with this artist..."
+                        rows={3}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                        <button
+                          className="ap-submit-btn"
+                          onClick={handleSubmitReview}
+                          disabled={!reviewRating || !reviewComment.trim() || submittingReview}
+                        >
+                          {submittingReview
+                            ? <><Loader2 style={{ width: 15, height: 15 }} className="animate-spin" /> Submitting...</>
+                            : <><Send style={{ width: 15, height: 15 }} /> Submit Review</>
+                          }
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
-            {/* Existing Reviews */}
-            {reviews.length > 0 ? (
-              <div className="space-y-4">
-                {reviews.map((review, i) => (
-                  <div key={review.id || i} className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm border dark:border-gray-700">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/40 rounded-full flex items-center justify-center text-sm font-bold text-amber-700 dark:text-amber-400">
+              {/* Review List */}
+              {reviews.length > 0 ? (
+                reviews.map((review, i) => (
+                  <div key={review.id || i} className="ap-review-card" style={{ animationDelay: `${i * 0.06}s` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div className="ap-reviewer-avatar">
                           {(review.customerName || 'C').charAt(0)}
                         </div>
                         <div>
-                          <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">{review.customerName || 'Customer'}</span>
-                          {review.customerId === currentUserId && (
-                            <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">You</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.875rem', color: '#1f2937' }} className="dark:text-gray-100">
+                              {review.customerName || 'Customer'}
+                            </span>
+                            {review.customerId === currentUserId && (
+                              <span style={{
+                                padding: '1px 8px', background: '#fef3c7', color: '#b45309',
+                                borderRadius: 99, fontSize: '0.65rem', fontWeight: 700, border: '1px solid #fde68a'
+                              }}>You</span>
+                            )}
+                          </div>
+                          {review.createdAt && (
+                            <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 1 }}>
+                              {typeof review.createdAt === 'string'
+                                ? review.createdAt
+                                : typeof review.createdAt === 'object' && 'seconds' in review.createdAt
+                                  ? new Date((review.createdAt as any).seconds * 1000).toLocaleDateString('en-IN')
+                                  : ''}
+                            </div>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div style={{ display: 'flex', gap: 2 }}>
                         {[...Array(5)].map((_, j) => (
-                          <Star key={j} className={`w-3 h-3 ${j < review.rating ? 'fill-amber-500 text-amber-500' : 'text-gray-300'}`} />
+                          <Star key={j} style={{
+                            width: 13, height: 13,
+                            fill: j < review.rating ? '#f59e0b' : 'none',
+                            color: j < review.rating ? '#f59e0b' : '#d1d5db'
+                          }} />
                         ))}
                       </div>
                     </div>
-                    <p className="text-gray-600 text-sm">{review.comment}</p>
-                    {review.createdAt && (
-                      <p className="text-xs text-gray-400 mt-2">
-                        {typeof review.createdAt === 'string'
-                          ? review.createdAt
-                          : typeof review.createdAt === 'object' && 'seconds' in review.createdAt
-                            ? new Date((review.createdAt as any).seconds * 1000).toLocaleDateString('en-IN')
-                            : ''}
-                      </p>
-                    )}
+                    <p style={{ color: '#4b5563', fontSize: '0.875rem', lineHeight: 1.6 }} className="dark:text-gray-400">
+                      {review.comment}
+                    </p>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-10">
-                <span className="text-4xl mb-3 block">⭐</span>
-                <p className="text-gray-500">No reviews yet. Be the first to review!</p>
-              </div>
-            )}
-          </div>
-        )}
+                ))
+              ) : (
+                <div className="ap-empty-state">
+                  <span className="ap-empty-icon">⭐</span>
+                  <p className="ap-empty-text">No reviews yet. Be the first to review!</p>
+                </div>
+              )}
+            </div>
+          )}
 
-        {userRole === 'customer' && (
-          <div className="sticky bottom-4 flex gap-3">
-            <button
-              onClick={() => navigate(`/request/${artist.id}`)}
-              className="flex-1 py-4 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all"
-            >
-              🎨 Request Custom Art
-            </button>
-            <button
-              onClick={() => navigate(`/chat/${artist.id}`)}
-              className="px-4 py-4 bg-white border-2 border-amber-600 text-amber-600 rounded-xl hover:bg-amber-50 transition-all"
-            >
-              <MessageCircle className="w-6 h-6" />
-            </button>
-          </div>
-        )}
+          {/* Bottom CTA */}
+          {userRole === 'customer' && (
+            <div className="ap-cta-bar">
+              <button className="ap-cta-main" onClick={() => navigate(`/request/${artist.id}`)}>
+                🎨 Request Custom Art
+              </button>
+              {/* <button className="ap-cta-chat" onClick={() => navigate(`/chat/${artist.id}`)}>
+                <MessageCircle style={{ width: 22, height: 22 }} />
+              </button> */}
+            </div>
+          )}
+
+        </div>
       </div>
-    </div>
+    </>
   )
 }

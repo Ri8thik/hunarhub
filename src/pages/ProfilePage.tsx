@@ -5,522 +5,1113 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { getArtistById } from '@/services/firestoreService';
 import { getIndianStates, getCitiesByState } from '@/services/locationService';
-import { User, Settings, LogOut, ChevronRight, Shield, Bell, HelpCircle, Moon, Globe, Palette, Star, MapPin } from 'lucide-react';
-import { X, CheckCircle, Loader2, Save } from 'lucide-react'
+import {
+  User, LogOut, Bell, Moon, Palette, Star, MapPin,
+  X, CheckCircle, Loader2, Save, Phone, Mail, ArrowRightLeft,
+  Edit3, ChevronRight, Sun, Shield, Search
+} from 'lucide-react';
 import { seedDatabase } from '@/services/seedService';
 import { getSessionDebugInfo } from '@/services/sessionManager';
+
+const styles = `
+  @keyframes fadeInUp   { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeIn     { from{opacity:0} to{opacity:1} }
+  @keyframes slideUp    { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes scaleIn    { from{opacity:0;transform:scale(0.85)} to{opacity:1;transform:scale(1)} }
+  @keyframes float      { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+  @keyframes pulse-ring { 0%{transform:scale(1);opacity:0.4} 100%{transform:scale(1.7);opacity:0} }
+  @keyframes checkPop   { 0%{transform:scale(0) rotate(-10deg)} 60%{transform:scale(1.15) rotate(3deg)} 100%{transform:scale(1) rotate(0)} }
+
+  /* ── Page ── */
+  .pp-page {
+    height: 100%; overflow-y: auto;
+    background: #f8fafc;
+    transition: background 0.3s;
+  }
+  .dark .pp-page { background: #030712; }
+
+  .pp-body { padding: 1rem; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  @media(min-width:1024px) { .pp-body { padding: 2rem; } }
+
+  /* ── Profile Hero ── */
+  .pp-hero {
+    border-radius: 22px; overflow: hidden; position: relative;
+    background: linear-gradient(135deg, #7c2d12 0%, #9a3412 25%, #c2410c 60%, #d97706 100%);
+    padding: 28px 22px 22px;
+    animation: fadeInUp 0.4s ease both;
+    box-shadow: 0 8px 28px rgba(217,119,6,0.25);
+  }
+  .pp-hero-pattern {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      radial-gradient(circle at 10% 40%, rgba(255,255,255,0.08) 0%, transparent 50%),
+      radial-gradient(circle at 90% 10%, rgba(255,255,255,0.05) 0%, transparent 40%),
+      repeating-linear-gradient(45deg, transparent, transparent 25px, rgba(255,255,255,0.02) 25px, rgba(255,255,255,0.02) 26px);
+  }
+  .pp-hero-content { position: relative; z-index: 1; display: flex; align-items: center; gap: 16px; }
+
+  .pp-avatar {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(8px);
+    border: 3px solid rgba(255,255,255,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem; font-weight: 900; color: #fff;
+    position: relative; flex-shrink: 0;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    animation: fadeInUp 0.4s ease both;
+  }
+  .pp-avatar-ring {
+    position: absolute; inset: -6px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.25);
+    animation: pulse-ring 2s ease-out infinite;
+  }
+
+  .pp-hero-name { font-size: 1.3rem; font-weight: 900; color: #fff; line-height: 1.2; text-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  .pp-hero-email { font-size: 0.78rem; color: rgba(255,255,255,0.7); margin-top: 3px; }
+
+  .pp-mode-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 99px; padding: 4px 10px;
+    font-size: 0.7rem; font-weight: 700; color: #fff;
+    margin-top: 8px;
+  }
+
+  .pp-edit-btn {
+    margin-left: auto; flex-shrink: 0;
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 14px; border-radius: 12px;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: #fff; font-size: 0.78rem; font-weight: 700;
+    cursor: pointer; backdrop-filter: blur(4px);
+    transition: all 0.2s;
+  }
+  .pp-edit-btn:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); }
+
+  /* ── Cards ── */
+  .pp-card {
+    background: #fff; border-radius: 18px;
+    border: 1.5px solid #f1f5f9;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+    overflow: hidden;
+    animation: fadeInUp 0.4s ease both;
+  }
+  .dark .pp-card { background: #0f172a; border-color: #1e293b; box-shadow: 0 2px 10px rgba(0,0,0,0.25); }
+
+  .pp-card-header {
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.7rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: #d97706;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .dark .pp-card-header { border-color: #1e293b; }
+  .pp-card-header::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(to right, #fde68a, transparent);
+    margin-left: 4px;
+  }
+  .dark .pp-card-header::after { background: linear-gradient(to right, #78350f, transparent); }
+
+  /* ── Artist banner ── */
+  .pp-artist-banner {
+    border-radius: 18px; padding: 18px;
+    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #818cf8 100%);
+    position: relative; overflow: hidden;
+    animation: fadeInUp 0.4s 0.06s ease both;
+    box-shadow: 0 6px 20px rgba(79,70,229,0.25);
+  }
+  .pp-artist-banner::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: radial-gradient(circle at 80% 20%, rgba(255,255,255,0.1) 0%, transparent 50%);
+  }
+  .pp-artist-banner-icon {
+    width: 48px; height: 48px; border-radius: 14px;
+    background: rgba(255,255,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .pp-artist-view-btn {
+    padding: 8px 16px; border-radius: 12px;
+    background: rgba(255,255,255,0.9);
+    color: #4f46e5; font-size: 0.8rem; font-weight: 800;
+    border: none; cursor: pointer;
+    transition: all 0.2s; flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .pp-artist-view-btn:hover { background: #fff; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+
+  /* ── Become artist banner ── */
+  .pp-become-banner {
+    border-radius: 18px; padding: 18px;
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border: 2px solid #fde68a;
+    position: relative; overflow: hidden;
+    animation: fadeInUp 0.4s 0.06s ease both;
+  }
+  .dark .pp-become-banner {
+    background: linear-gradient(135deg, #1c0a00, #251000);
+    border-color: #78350f;
+  }
+  .pp-become-banner::before {
+    content: '🎨';
+    position: absolute; right: -8px; top: -8px;
+    font-size: 5rem; opacity: 0.08;
+    pointer-events: none; line-height: 1;
+  }
+  .pp-become-cta {
+    width: 100%; margin-top: 14px; padding: 13px;
+    background: linear-gradient(135deg, #d97706, #ea580c);
+    color: #fff; border: none; border-radius: 14px;
+    font-size: 0.9rem; font-weight: 800; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(217,119,6,0.35);
+    transition: all 0.25s;
+  }
+  .pp-become-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(217,119,6,0.45); }
+
+  /* ── Role switcher ── */
+  .pp-role-switcher {
+    display: flex; background: #f1f5f9; border-radius: 12px; padding: 3px; gap: 2px;
+  }
+  .dark .pp-role-switcher { background: #1e293b; }
+
+  .pp-role-btn {
+    flex: 1; padding: 9px 12px; border-radius: 9px;
+    font-size: 0.8rem; font-weight: 700;
+    border: none; cursor: pointer; transition: all 0.2s;
+    color: #64748b; background: transparent;
+  }
+  .dark .pp-role-btn { color: #94a3b8; }
+  .pp-role-btn.active-customer {
+    background: linear-gradient(135deg, #fef3c7, #fffbeb);
+    color: #92400e;
+    box-shadow: 0 2px 6px rgba(217,119,6,0.2);
+    border: 1px solid #fde68a;
+  }
+  .dark .pp-role-btn.active-customer {
+    background: linear-gradient(135deg, #1c0a00, #251000);
+    color: #fcd34d;
+    border-color: #78350f;
+  }
+  .pp-role-btn.active-artist {
+    background: linear-gradient(135deg, #ede9fe, #f5f3ff);
+    color: #5b21b6;
+    box-shadow: 0 2px 6px rgba(109,40,217,0.2);
+    border: 1px solid #ddd6fe;
+  }
+  .dark .pp-role-btn.active-artist {
+    background: linear-gradient(135deg, #150e2d, #1a1240);
+    color: #a78bfa;
+    border-color: #2e1f6b;
+  }
+
+  /* ── Settings rows ── */
+  .pp-settings-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 18px;
+    cursor: pointer; transition: background 0.2s;
+    border-bottom: 1px solid #f8fafc;
+    width: 100%; background: none; border-left: none; border-right: none; border-top: none;
+    text-align: left;
+  }
+  .dark .pp-settings-row { border-color: #111827; }
+  .pp-settings-row:last-child { border-bottom: none; }
+  .pp-settings-row:hover { background: #fffbeb; }
+  .dark .pp-settings-row:hover { background: rgba(217,119,6,0.04); }
+
+  .pp-settings-icon-wrap {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .pp-settings-label {
+    flex: 1; font-size: 0.875rem; font-weight: 600;
+    color: #1e293b;
+  }
+  .dark .pp-settings-label { color: #e2e8f0; }
+
+  /* Toggle */
+  .pp-toggle {
+    width: 44px; height: 24px; border-radius: 99px;
+    position: relative; transition: background 0.25s; flex-shrink: 0;
+    border: none; cursor: pointer; padding: 0;
+  }
+  .pp-toggle.on { background: linear-gradient(135deg, #d97706, #ea580c); }
+  .pp-toggle.off { background: #e2e8f0; }
+  .dark .pp-toggle.off { background: #334155; }
+  .pp-toggle-dot {
+    position: absolute; top: 2px;
+    width: 20px; height: 20px;
+    background: #fff; border-radius: 50%;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  }
+  .pp-toggle.on .pp-toggle-dot { transform: translateX(22px); }
+  .pp-toggle.off .pp-toggle-dot { transform: translateX(2px); }
+
+  /* ── Logout ── */
+  .pp-logout {
+    width: 100%; padding: 14px;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    background: #fff; border-radius: 18px;
+    border: 1.5px solid #fee2e2;
+    color: #dc2626; font-size: 0.9rem; font-weight: 700;
+    cursor: pointer; transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    animation: fadeInUp 0.4s 0.3s ease both;
+  }
+  .dark .pp-logout { background: #0f172a; border-color: rgba(239,68,68,0.2); color: #f87171; }
+  .pp-logout:hover {
+    background: #fff1f2; border-color: #fecaca;
+    transform: translateY(-2px); box-shadow: 0 6px 16px rgba(239,68,68,0.12);
+  }
+  .dark .pp-logout:hover { background: rgba(239,68,68,0.08); }
+
+  /* ── Footer ── */
+  .pp-footer {
+    text-align: center; padding: 8px 0 16px;
+    font-size: 0.72rem; color: #94a3b8;
+    animation: fadeInUp 0.4s 0.35s ease both;
+  }
+
+  /* ════════════════════════════
+     EDIT MODAL — PREMIUM REDESIGN
+  ════════════════════════════ */
+
+  .ep-overlay {
+    position: fixed; inset: 0;
+    background: rgba(2,6,23,0.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 50;
+    display: flex; align-items: flex-end; justify-content: center;
+    animation: fadeIn 0.25s ease;
+  }
+  @media(min-width:640px) { .ep-overlay { align-items: center; } }
+
+  .ep-modal {
+    background: #fff;
+    width: 100%; max-width: 540px;
+    max-height: 94vh;
+    border-radius: 28px 28px 0 0;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+    box-shadow: 0 -4px 60px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  @media(min-width:640px) {
+    .ep-modal { border-radius: 26px; animation: scaleIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  }
+  .dark .ep-modal { background: #0c1220; box-shadow: 0 -4px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06); }
+
+  /* ── drag pill ── */
+  .ep-pill {
+    width: 36px; height: 4px; border-radius: 99px;
+    background: #e2e8f0; margin: 10px auto 0; flex-shrink: 0;
+  }
+  .dark .ep-pill { background: #1e293b; }
+  @media(min-width:640px) { .ep-pill { display: none; } }
+
+  /* ── Modal header with gradient ── */
+  .ep-header {
+    flex-shrink: 0; position: relative; overflow: hidden;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    background: #fff;
+  }
+  .dark .ep-header { background: #0c1220; border-color: #1e293b; }
+
+  /* Subtle top-left glow in header */
+  .ep-header::before {
+    content: '';
+    position: absolute; top: -24px; left: -24px;
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(217,119,6,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .ep-header-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    position: relative; z-index: 1;
+  }
+
+  .ep-header-identity { display: flex; align-items: center; gap: 12px; }
+
+  .ep-header-avatar {
+    width: 44px; height: 44px; border-radius: 14px;
+    background: linear-gradient(135deg, #d97706, #ea580c);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; font-weight: 900; color: #fff;
+    box-shadow: 0 4px 12px rgba(217,119,6,0.35); flex-shrink: 0;
+  }
+
+  .ep-header-title { font-size: 1.05rem; font-weight: 900; color: #0f172a; letter-spacing: -0.01em; }
+  .dark .ep-header-title { color: #f8fafc; }
+  .ep-header-sub { font-size: 0.72rem; color: #94a3b8; margin-top: 1px; font-weight: 500; }
+
+  .ep-close-btn {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: #f1f5f9; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s; flex-shrink: 0;
+    color: #64748b;
+  }
+  .dark .ep-close-btn { background: #1e293b; color: #94a3b8; }
+  .ep-close-btn:hover { background: #fee2e2; color: #dc2626; transform: rotate(90deg); }
+  .dark .ep-close-btn:hover { background: rgba(239,68,68,0.1); color: #f87171; }
+
+  /* ── Tab switcher (Basic / Artist) ── */
+  .ep-tabs {
+    display: flex; gap: 4px;
+    padding: 10px 20px 0;
+    border-bottom: 1px solid #f1f5f9;
+    flex-shrink: 0; background: #fff;
+    position: relative; z-index: 1;
+  }
+  .dark .ep-tabs { background: #0c1220; border-color: #1e293b; }
+
+  .ep-tab {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px 10px 10px;
+    font-size: 0.8rem; font-weight: 700;
+    background: none; border: none; cursor: pointer;
+    color: #94a3b8; transition: color 0.2s;
+    position: relative; border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .ep-tab:hover { color: #d97706; }
+  .ep-tab.active { color: #d97706; border-bottom-color: #d97706; }
+  .dark .ep-tab { color: #475569; }
+  .dark .ep-tab:hover { color: #fbbf24; }
+  .dark .ep-tab.active { color: #fbbf24; border-bottom-color: #fbbf24; }
+
+  .ep-tab-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; opacity: 0.5;
+    flex-shrink: 0;
+  }
+  .ep-tab.active .ep-tab-dot { opacity: 1; }
+
+  /* ── Body ── */
+  .ep-body {
+    flex: 1; overflow-y: scroll; padding: 20px;
+    display: flex; flex-direction: column; gap: 14px;
+    scrollbar-width: thin; scrollbar-color: #e2e8f0 transparent;
+  }
+  .dark .ep-body { scrollbar-color: #1e293b transparent; }
+
+  /* ── Field group card ── */
+  .ep-group {
+    background: #f8fafc;
+    border: 1.5px solid #f1f5f9;
+    border-radius: 18px;
+    transition: border-color 0.2s;
+  }
+  .dark .ep-group { background: #111827; border-color: #1e293b; }
+  .ep-group:focus-within { border-color: rgba(217,119,6,0.4); }
+
+  /* ── Field item inside group ── */
+  .ep-field {
+    padding: 13px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    position: relative;
+  }
+  .dark .ep-field { border-color: #1e293b; }
+  .ep-field:last-child { border-bottom: none; }
+
+  .ep-field-label {
+    display: block; font-size: 0.68rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    color: #94a3b8; margin-bottom: 5px;
+  }
+  .dark .ep-field-label { color: #475569; }
+
+  /* ── Input row (icon + input side by side) ── */
+  .ep-input-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ep-input-icon-box {
+    width: 32px; height: 32px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Bare input — no border, no bg, part of the group */
+  .ep-bare-input {
+    flex: 1; background: none; border: none; outline: none;
+    font-size: 0.9rem; font-weight: 600; color: #0f172a;
+    padding: 0; min-width: 0;
+    font-family: inherit;
+  }
+  .dark .ep-bare-input { color: #f1f5f9; }
+  .ep-bare-input::placeholder { color: #cbd5e1; font-weight: 400; }
+  .dark .ep-bare-input::placeholder { color: #374151; }
+  .ep-bare-input:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .ep-bare-select {
+    flex: 1; background: none; border: none; outline: none;
+    font-size: 0.9rem; font-weight: 600; color: #0f172a;
+    padding: 0; min-width: 0; cursor: pointer;
+    font-family: inherit; appearance: none;
+  }
+  .dark .ep-bare-select { color: #f1f5f9; }
+  .ep-bare-select option { background: #fff; color: #0f172a; }
+  .dark .ep-bare-select option { background: #1e293b; color: #f1f5f9; }
+
+  .ep-hint {
+    font-size: 0.68rem; color: #94a3b8; margin-top: 4px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .ep-hint.success { color: #16a34a; }
+  .dark .ep-hint.success { color: #4ade80; }
+
+  /* ── City dropdown ── */
+  .ep-city-drop {
+    border: 1.5px solid #e2e8f0; border-radius: 14px;
+    max-height: 160px; overflow-y: auto;
+    margin-top: 8px; background: #fff;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    animation: slideDown 0.2s ease;
+  }
+  .dark .ep-city-drop { background: #1e293b; border-color: #334155; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+  @keyframes slideDown { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+
+  .ep-city-item {
+    width: 100%; text-align: left; padding: 10px 14px;
+    font-size: 0.85rem; font-weight: 500; color: #334155;
+    background: none; border: none; cursor: pointer; transition: all 0.15s;
+    border-bottom: 1px solid #f8fafc;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .dark .ep-city-item { color: #94a3b8; border-color: #1e293b; }
+  .ep-city-item:last-child { border-bottom: none; }
+  .ep-city-item:hover { background: #fffbeb; color: #92400e; padding-left: 18px; }
+  .dark .ep-city-item:hover { background: rgba(217,119,6,0.08); color: #fbbf24; }
+  .ep-city-item.picked { background: #fef3c7; color: #b45309; font-weight: 700; }
+  .dark .ep-city-item.picked { background: rgba(217,119,6,0.12); color: #fcd34d; }
+
+  /* ── Textarea field ── */
+  .ep-bare-textarea {
+    width: 100%; background: none; border: none; outline: none;
+    font-size: 0.9rem; font-weight: 500; color: #0f172a;
+    resize: none; line-height: 1.65; min-height: 72px;
+    font-family: inherit; padding: 0;
+    box-sizing: border-box;
+  }
+  .dark .ep-bare-textarea { color: #f1f5f9; }
+  .ep-bare-textarea::placeholder { color: #cbd5e1; }
+  .dark .ep-bare-textarea::placeholder { color: #374151; }
+
+  /* ── Skill chips ── */
+  .ep-skills-wrap { display: flex; flex-wrap: wrap; gap: 7px; }
+  .ep-skill {
+    padding: 6px 13px; border-radius: 99px;
+    font-size: 0.75rem; font-weight: 700;
+    cursor: pointer; border: 1.5px solid; transition: all 0.18s;
+    user-select: none;
+  }
+  .ep-skill.on {
+    background: linear-gradient(135deg, #d97706, #ea580c);
+    color: #fff; border-color: transparent;
+    box-shadow: 0 3px 10px rgba(217,119,6,0.35);
+    transform: scale(1.04);
+  }
+  .ep-skill.off {
+    background: #fff; color: #64748b; border-color: #e2e8f0;
+  }
+  .dark .ep-skill.off { background: #111827; color: #94a3b8; border-color: #1e293b; }
+  .ep-skill.off:hover { border-color: #fde68a; color: #d97706; background: #fffbeb; }
+  .dark .ep-skill.off:hover { border-color: #78350f; color: #fbbf24; background: rgba(217,119,6,0.06); }
+
+  /* ── Price input row ── */
+  .ep-price-row { display: flex; align-items: center; gap: 0; }
+  .ep-price-prefix {
+    font-size: 1rem; font-weight: 800; color: #d97706;
+    padding-right: 4px; flex-shrink: 0;
+    line-height: 1;
+  }
+  .ep-price-suffix {
+    font-size: 0.75rem; color: #94a3b8; margin-left: 8px;
+    white-space: nowrap; flex-shrink: 0;
+  }
+
+  /* ── Availability cards ── */
+  .ep-avail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ep-avail-card {
+    padding: 14px 12px; border-radius: 14px;
+    border: 2px solid; cursor: pointer; transition: all 0.2s;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    user-select: none;
+  }
+  .ep-avail-card.green-on {
+    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    border-color: #86efac;
+    box-shadow: 0 4px 14px rgba(34,197,94,0.2);
+  }
+  .dark .ep-avail-card.green-on { background: rgba(20,83,45,0.15); border-color: rgba(34,197,94,0.35); }
+  .ep-avail-card.red-on {
+    background: linear-gradient(135deg, #fff1f2, #fee2e2);
+    border-color: #fca5a5;
+    box-shadow: 0 4px 14px rgba(239,68,68,0.15);
+  }
+  .dark .ep-avail-card.red-on { background: rgba(127,29,29,0.15); border-color: rgba(239,68,68,0.35); }
+  .ep-avail-card.off-state {
+    background: #f8fafc; border-color: #e2e8f0;
+  }
+  .dark .ep-avail-card.off-state { background: #111827; border-color: #1e293b; }
+  .ep-avail-card.off-state:hover { border-color: #cbd5e1; }
+  .dark .ep-avail-card.off-state:hover { border-color: #334155; }
+
+  .ep-avail-icon {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+  }
+  .ep-avail-label { font-size: 0.82rem; font-weight: 800; }
+  .ep-avail-desc { font-size: 0.68rem; color: #94a3b8; text-align: center; line-height: 1.3; }
+
+  /* ── Section label ── */
+  .ep-section-label {
+    font-size: 0.68rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.1em; color: #94a3b8; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+    padding-left: 2px;
+  }
+  .ep-section-label span { flex: 1; height: 1px; background: #f1f5f9; margin-left: 4px; }
+  .dark .ep-section-label span { background: #1e293b; }
+
+  /* ── Modal footer ── */
+  .ep-footer {
+    padding: 12px 20px 16px;
+    border-top: 1px solid #f1f5f9;
+    display: flex; gap: 10px; flex-shrink: 0;
+    background: #fff;
+  }
+  .dark .ep-footer { background: #0c1220; border-color: #1e293b; }
+
+  .ep-cancel {
+    padding: 12px 18px;
+    background: #f1f5f9; color: #475569;
+    border: none; border-radius: 14px;
+    font-size: 0.875rem; font-weight: 700;
+    cursor: pointer; transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .dark .ep-cancel { background: #1e293b; color: #94a3b8; }
+  .ep-cancel:hover { background: #e2e8f0; color: #334155; }
+  .dark .ep-cancel:hover { background: #334155; color: #e2e8f0; }
+
+  .ep-save {
+    flex: 1; padding: 13px;
+    background: linear-gradient(135deg, #d97706, #ea580c);
+    color: #fff; border: none; border-radius: 14px;
+    font-size: 0.9rem; font-weight: 800;
+    cursor: pointer; transition: all 0.25s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    box-shadow: 0 4px 16px rgba(217,119,6,0.4);
+    letter-spacing: 0.01em;
+  }
+  .ep-save:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(217,119,6,0.5); }
+  .ep-save:active:not(:disabled) { transform: translateY(0); }
+  .ep-save:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+
+  /* ── Success ── */
+  .ep-success {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 2.5rem 2rem; gap: 10px; text-align: center;
+  }
+  .ep-success-icon {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 28px rgba(34,197,94,0.3);
+    animation: checkPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    margin-bottom: 4px;
+  }
+  .ep-success-title { font-size: 1.2rem; font-weight: 900; color: #0f172a; letter-spacing: -0.01em; }
+  .dark .ep-success-title { color: #f8fafc; }
+  .ep-success-sub { font-size: 0.85rem; color: #94a3b8; line-height: 1.5; max-width: 240px; }
+  .ep-success-confetti { font-size: 2rem; animation: float 2s ease-in-out infinite; }
+`
 
 export default function ProfilePage() {
   const { currentUserName, currentUserEmail, currentUserId, userRole, switchRole, isArtist, artistChecked, logout, artists, darkMode, toggleDarkMode } = useApp();
   const navigate = useNavigate();
   const [seedingStatus, setSeedingStatus] = useState('');
   const [seedingProgress, setSeedingProgress] = useState('');
-  const [showDebug, setShowDebug] = useState(false);
-
   const sessionInfo = getSessionDebugInfo();
-
   const myArtistProfile = artists.find(a => a.id === currentUserId);
 
-
-  const handleSeedDatabase = async () => {
-    setSeedingStatus('');
-    setSeedingProgress('Starting...');
-    try {
-      const result = await seedDatabase(
-        (step) => setSeedingProgress(step),
-        currentUserId || undefined
-      );
-      if (result.success) {
-        setSeedingStatus('✅ Database seeded successfully! Refresh the page.');
-      } else {
-        setSeedingStatus('⚠️ Completed with errors: ' + result.errors.join(', '));
-      }
-      setSeedingProgress('');
-    } catch (error) {
-      setSeedingStatus('❌ Error seeding database. Check console.');
-      setSeedingProgress('');
-      console.error(error);
-    }
-  };
-
-  const settingsGroups = [
-    {
-      title: 'Account',
-      items: [
-        { icon: User, label: 'Edit Profile', action: () => handleOpenEdit(), toggle: null },
-        { icon: Bell, label: 'Notifications', action: () => navigate('/notifications'), toggle: null },
-      ]
-    },
-    {
-      title: 'Preferences',
-      items: [
-        { icon: Moon, label: 'Dark Mode', action: toggleDarkMode, toggle: darkMode },
-      ]
-    },
-  ];
-
-
-    // Edit Profile States
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [editLoading, setEditLoading] = useState(false)
-  const [editSuccess, setEditSuccess] = useState(false)
-  const [editName, setEditName] = useState('')
-  const [editPhone, setEditPhone] = useState('')
-  const [editSelectedState, setEditSelectedState] = useState('')
-  const [editSelectedCity, setEditSelectedCity] = useState('')
-  const [editCities, setEditCities] = useState<string[]>([])
-  const [editCityLoading, setEditCityLoading] = useState(false)
-  const [editCitySearch, setEditCitySearch] = useState('')
-  // Artist edit fields
-  const [editBio, setEditBio] = useState('')
-  const [editSkills, setEditSkills] = useState<string[]>([])
-  const [editPriceMin, setEditPriceMin] = useState('')
-  const [editAvailability, setEditAvailability] = useState('available')
+  // Edit modal states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editSuccess, setEditSuccess] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editSelectedState, setEditSelectedState] = useState('');
+  const [editSelectedCity, setEditSelectedCity] = useState('');
+  const [editCities, setEditCities] = useState<string[]>([]);
+  const [editCityLoading, setEditCityLoading] = useState(false);
+  const [editCitySearch, setEditCitySearch] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [editSkills, setEditSkills] = useState<string[]>([]);
+  const [editPriceMin, setEditPriceMin] = useState('');
+  const [editAvailability, setEditAvailability] = useState('available');
 
   const skillOptions = [
     'Sketch', 'Pencil Drawing', 'Charcoal Art', 'Portrait', 'Caricature',
     'Oil Painting', 'Watercolor', 'Acrylic Painting', 'Digital Art', 'Vector Art',
     'Calligraphy', 'Mandala Art', 'Rangoli Design', 'Mehndi Design', 'Wall Mural',
     'Clay Sculpture', 'Wood Carving', 'Paper Craft', 'Handmade Jewelry', 'Embroidery'
-  ]
+  ];
 
   const handleOpenEdit = async () => {
-    setEditName(currentUserName || '')
-    setEditPhone('')
-    setEditSelectedState('')
-    setEditSelectedCity('')
-    setEditBio('')
-    setEditSkills([])
-    setEditPriceMin('')
-    setEditAvailability('available')
-
-    // Load current user data from Firestore
+    setEditName(currentUserName || '');
+    setEditPhone(''); setEditSelectedState(''); setEditSelectedCity('');
+    setEditBio(''); setEditSkills([]); setEditPriceMin(''); setEditAvailability('available');
     try {
       if (currentUserId) {
-        const userDoc = await getDoc(doc(db, 'users', currentUserId))
+        const userDoc = await getDoc(doc(db, 'users', currentUserId));
         if (userDoc.exists()) {
-          const data = userDoc.data()
-          setEditName(data.name || currentUserName || '')
-          setEditPhone(data.phone || '')
+          const data = userDoc.data();
+          setEditName(data.name || currentUserName || '');
+          setEditPhone(data.phone || '');
           if (data.location) {
-            const parts = data.location.split(', ')
+            const parts = data.location.split(', ');
             if (parts.length === 2) {
-              setEditSelectedCity(parts[0])
-              setEditSelectedState(parts[1])
-              setEditCitySearch(parts[0])
-              const cities = await getCitiesByState(parts[1])
-              setEditCities(cities)
-            } else {
-              setEditSelectedState(data.location)
-            }
+              setEditSelectedCity(parts[0]); setEditSelectedState(parts[1]);
+              setEditCitySearch(parts[0]);
+              const cities = await getCitiesByState(parts[1]);
+              setEditCities(cities);
+            } else { setEditSelectedState(data.location); }
           }
         }
-
-        // Load artist data if artist
         if (isArtist) {
-          const artistData = await getArtistById(currentUserId)
+          const artistData = await getArtistById(currentUserId);
           if (artistData) {
-            setEditBio((artistData as any).bio || '')
-            setEditSkills((artistData as any).skills || [])
-            setEditPriceMin(String((artistData as any).priceRange?.min || ''))
-            setEditAvailability((artistData as any).availability || 'available')
+            setEditBio((artistData as any).bio || '');
+            setEditSkills((artistData as any).skills || []);
+            setEditPriceMin(String((artistData as any).priceRange?.min || ''));
+            setEditAvailability((artistData as any).availability || 'available');
           }
         }
       }
-    } catch (err) {
-      console.error('Error loading profile for edit:', err)
-    }
-
-    setShowEditModal(true)
-    setEditSuccess(false)
-  }
+    } catch (err) { console.error('Error loading profile for edit:', err); }
+    setShowEditModal(true); setEditSuccess(false);
+  };
 
   const handleEditStateChange = async (state: string) => {
-    setEditSelectedState(state)
-    setEditSelectedCity('')
-    setEditCitySearch('')
-    setEditCityLoading(true)
-    const cities = await getCitiesByState(state)
-    setEditCities(cities)
-    setEditCityLoading(false)
-  }
+    setEditSelectedState(state); setEditSelectedCity(''); setEditCitySearch('');
+    setEditCityLoading(true);
+    const cities = await getCitiesByState(state);
+    setEditCities(cities); setEditCityLoading(false);
+  };
 
   const toggleEditSkill = (skill: string) => {
-    setEditSkills(prev =>
-      prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]
-    )
-  }
+    setEditSkills(prev => prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]);
+  };
 
   const handleSaveEdit = async () => {
-    if (!currentUserId) return
-    setEditLoading(true)
+    if (!currentUserId) return;
+    setEditLoading(true);
     try {
       const location = editSelectedCity && editSelectedState
         ? `${editSelectedCity}, ${editSelectedState}`
-        : editSelectedState || ''
-
-      // Update users collection
+        : editSelectedState || '';
       await updateDoc(doc(db, 'users', currentUserId), {
-        name: editName.trim(),
-        phone: editPhone.trim(),
-        location: location,
-        updatedAt: new Date().toISOString()
-      })
-
-      // Update artists collection if artist
+        name: editName.trim(), phone: editPhone.trim(),
+        location, updatedAt: new Date().toISOString()
+      });
       if (isArtist) {
         try {
           await updateDoc(doc(db, 'artists', currentUserId), {
-            name: editName.trim(),
-            location: location,
-            bio: editBio.trim(),
+            name: editName.trim(), location, bio: editBio.trim(),
             skills: editSkills,
             priceRange: { min: parseInt(editPriceMin) || 500, max: (parseInt(editPriceMin) || 500) * 5 },
-            availability: editAvailability,
-            updatedAt: new Date().toISOString()
-          })
-        } catch (err) {
-          console.error('Error updating artist profile:', err)
-        }
+            availability: editAvailability, updatedAt: new Date().toISOString()
+          });
+        } catch (err) { console.error('Error updating artist profile:', err); }
       }
-
-      setEditSuccess(true)
-      setTimeout(() => {
-        setShowEditModal(false)
-        setEditSuccess(false)
-        window.location.reload()
-      }, 1500)
+      setEditSuccess(true);
+      setTimeout(() => { setShowEditModal(false); setEditSuccess(false); window.location.reload(); }, 1800);
     } catch (err) {
-      console.error('Error saving profile:', err)
-      alert('Failed to save profile. Please try again.')
-    } finally {
-      setEditLoading(false)
-    }
-  }
+      console.error('Error saving profile:', err);
+      alert('Failed to save profile. Please try again.');
+    } finally { setEditLoading(false); }
+  };
 
   const filteredEditCities = editCitySearch
     ? editCities.filter(c => c.toLowerCase().includes(editCitySearch.toLowerCase()))
-    : editCities
+    : editCities;
+
+  const initials = currentUserName?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'U';
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-950 transition-colors">
-      <div className=" mx-auto p-4 lg:p-8 space-y-6">
+    <>
+      <style>{styles}</style>
+      <div className="pp-page">
+        <div className="pp-body">
 
-        {/* Profile Header */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-2xl lg:text-3xl font-bold">
-              {currentUserName?.charAt(0) || 'U'}
-            </div>
-            <div className="flex-1">
-              <h1 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100">{currentUserName || 'User'}</h1>
-              <p className="text-gray-500 dark:text-gray-400">{currentUserEmail || 'user@example.com'}</p>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                  userRole === 'artist'
-                    ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400'
-                    : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400'
-                }`}>
-                  {userRole === 'artist' ? '🎨 Artist Mode' : '👤 Customer Mode'}
-                </span>
+          {/* ── Profile Hero ── */}
+          <div className="pp-hero">
+            <div className="pp-hero-pattern" />
+            <div className="pp-hero-content">
+              <div className="pp-avatar">
+                <div className="pp-avatar-ring" />
+                {initials}
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* View My Artist Profile - ONLY shows if user has artist profile */}
-        {artistChecked && isArtist && (
-          <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-2xl p-6 shadow-sm text-white">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center">
-                <Palette size={28} className="text-white" />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="pp-hero-name">{currentUserName || 'User'}</div>
+                <div className="pp-hero-email">{currentUserEmail}</div>
+                <div className="pp-mode-badge">
+                  {userRole === 'artist' ? '🎨 Artist Mode' : '🛒 Customer Mode'}
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold">My Artist Profile</h3>
-                {myArtistProfile && (
-                  <div className="flex items-center gap-3 mt-1 text-white/80 text-sm">
-                    {myArtistProfile.location && (
-                      <span className="flex items-center gap-1">
-                        <MapPin size={12} />
-                        {myArtistProfile.location}
-                      </span>
-                    )}
-                    {myArtistProfile.rating > 0 && (
-                      <span className="flex items-center gap-1">
-                        <Star size={12} className="fill-yellow-300 text-yellow-300" />
-                        {myArtistProfile.rating}
-                      </span>
-                    )}
-                  </div>
-                )}
-                <p className="text-white/70 text-sm mt-1">View and manage your portfolio & reviews</p>
-              </div>
-              <button
-                onClick={() => navigate('/my-artist-profile')}
-                className="px-4 py-2 bg-white text-purple-600 rounded-xl font-semibold hover:bg-purple-50 transition-colors text-sm"
-              >
-                View Profile →
+              <button className="pp-edit-btn" onClick={handleOpenEdit}>
+                <Edit3 size={13} />
+                Edit
               </button>
             </div>
           </div>
-        )}
 
-        {/* Role Switcher - ONLY shows if user has artist profile */}
-        {artistChecked && isArtist && (
-          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Switch Mode</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Currently in {userRole === 'artist' ? 'Artist' : 'Customer'} mode
-                </p>
-              </div>
-              <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
-                <button
-                  onClick={() => switchRole('customer')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    userRole === 'customer' ? 'bg-amber-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                  }`}
-                >
-                  👤 Customer
-                </button>
-                <button
-                  onClick={() => switchRole('artist')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    userRole === 'artist' ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                  }`}
-                >
-                  🎨 Artist
+          {/* ── Artist Profile Banner ── */}
+          {artistChecked && isArtist && (
+            <div className="pp-artist-banner" style={{ animationDelay: '0.06s' }}>
+              <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div className="pp-artist-banner-icon">
+                  <Palette size={24} color="#fff" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 800, fontSize: '1rem', color: '#fff' }}>My Artist Profile</div>
+                  {myArtistProfile && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+                      {myArtistProfile.location && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: '0.75rem', color: 'rgba(255,255,255,0.75)' }}>
+                          <MapPin size={11} />{myArtistProfile.location}
+                        </span>
+                      )}
+                      {myArtistProfile.rating > 0 && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: '0.75rem', color: 'rgba(255,255,255,0.75)' }}>
+                          <Star size={11} style={{ fill: '#fbbf24', color: '#fbbf24' }} />
+                          {myArtistProfile.rating}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>
+                    Manage your portfolio, skills & reviews
+                  </div>
+                </div>
+                <button className="pp-artist-view-btn" onClick={() => navigate('/my-artist-profile')}>
+                  View →
                 </button>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Become an Artist - ONLY shows if NO artist profile */}
-        {artistChecked && !isArtist && (
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-2xl p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-amber-100 flex items-center justify-center">
-                <Palette size={28} className="text-amber-600" />
+          {/* ── Role Switcher ── */}
+          {artistChecked && isArtist && (
+            <div className="pp-card" style={{ animationDelay: '0.1s' }}>
+              <div className="pp-card-header">
+                <ArrowRightLeft size={12} /> Switch Mode
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-gray-900">Become an Artist 🎨</h3>
-                <p className="text-gray-600 text-sm mt-1">
-                  Create your artist profile, showcase your portfolio, and start receiving custom art requests from customers.
+              <div style={{ padding: '14px' }}>
+                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: 10 }}>
+                  Toggle between customer and artist experience
                 </p>
+                <div className="pp-role-switcher">
+                  <button
+                    className={`pp-role-btn ${userRole === 'customer' ? 'active-customer' : ''}`}
+                    onClick={() => switchRole('customer')}
+                  >
+                    🛒 Customer
+                  </button>
+                  <button
+                    className={`pp-role-btn ${userRole === 'artist' ? 'active-artist' : ''}`}
+                    onClick={() => switchRole('artist')}
+                  >
+                    🎨 Artist
+                  </button>
+                </div>
               </div>
             </div>
-            <button
-              onClick={() => navigate('/become-artist')}
-              className="mt-4 w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold hover:from-amber-600 hover:to-orange-600 transition-all"
-            >
-              Create Artist Profile →
+          )}
+
+          {/* ── Become Artist ── */}
+          {artistChecked && !isArtist && (
+            <div className="pp-become-banner">
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+                  background: 'linear-gradient(135deg, #d97706, #ea580c)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(217,119,6,0.3)'
+                }}>
+                  <Palette size={22} color="#fff" />
+                </div>
+                <div>
+                  <div style={{ fontSize: '1rem', fontWeight: 800, color: '#1e293b' }} className="dark:text-gray-100">
+                    Become an Artist 🎨
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 5, lineHeight: 1.55 }} className="dark:text-gray-400">
+                    Showcase your portfolio, set your pricing, and start receiving custom art requests from customers across India.
+                  </div>
+                </div>
+              </div>
+              <button className="pp-become-cta" onClick={() => navigate('/become-artist')}>
+                Create Artist Profile →
+              </button>
+            </div>
+          )}
+
+          {/* ── Checking status ── */}
+          {!artistChecked && (
+            <div className="pp-card" style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 20, height: 20, borderRadius: '50%', border: '2.5px solid #d97706', borderTopColor: 'transparent' }} className="animate-spin" />
+              <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Checking artist profile...</span>
+            </div>
+          )}
+
+          {/* ── Settings ── */}
+          <div className="pp-card" style={{ animationDelay: '0.14s' }}>
+            <div className="pp-card-header">
+              <User size={12} /> Account
+            </div>
+            <button className="pp-settings-row" onClick={handleOpenEdit}>
+              <div className="pp-settings-icon-wrap" style={{ background: '#eff6ff' }}>
+                <Edit3 size={16} color="#3b82f6" />
+              </div>
+              <span className="pp-settings-label">Edit Profile</span>
+              <ChevronRight size={15} color="#cbd5e1" />
+            </button>
+            <button className="pp-settings-row" onClick={() => navigate('/notifications')}>
+              <div className="pp-settings-icon-wrap" style={{ background: '#fef3c7' }}>
+                <Bell size={16} color="#d97706" />
+              </div>
+              <span className="pp-settings-label">Notifications</span>
+              <ChevronRight size={15} color="#cbd5e1" />
             </button>
           </div>
-        )}
 
-        {/* Checking artist status */}
-        {!artistChecked && (
-          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
-              <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-              <span>Checking artist profile...</span>
+          <div className="pp-card" style={{ animationDelay: '0.18s' }}>
+            <div className="pp-card-header">
+              <Shield size={12} /> Preferences
             </div>
-          </div>
-        )}
-
-        {/* Settings */}
-        {settingsGroups.map(group => (
-          <div key={group.title} className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-6 py-3 border-b border-gray-100 dark:border-gray-700">
-              <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{group.title}</h3>
-            </div>
-            {group.items.map((item, i) => (
-              <button
-                key={i}
-                onClick={item.action}
-                className="w-full flex items-center gap-4 px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-50 dark:border-gray-800 last:border-0"
-              >
-                <item.icon size={20} className="text-gray-400 dark:text-gray-500" />
-                <span className="flex-1 text-left text-gray-700 dark:text-gray-200 font-medium">{item.label}</span>
-                {item.toggle !== null && item.toggle !== undefined ? (
-                  <div className={`w-11 h-6 rounded-full transition-colors relative ${item.toggle ? 'bg-amber-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                    <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${item.toggle ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                  </div>
-                ) : (
-                  <ChevronRight size={16} className="text-gray-300 dark:text-gray-600" />
-                )}
+            <div className="pp-settings-row" onClick={toggleDarkMode} style={{ cursor: 'pointer' }}>
+              <div className="pp-settings-icon-wrap" style={{ background: darkMode ? '#1e293b' : '#f8fafc' }}>
+                {darkMode ? <Moon size={16} color="#818cf8" /> : <Sun size={16} color="#f59e0b" />}
+              </div>
+              <span className="pp-settings-label">Dark Mode</span>
+              <button className={`pp-toggle ${darkMode ? 'on' : 'off'}`} onClick={e => { e.stopPropagation(); toggleDarkMode(); }}>
+                <div className="pp-toggle-dot" />
               </button>
-            ))}
-          </div>
-        ))}
-
-        {/* Seed Database */}
-        {/* <div className="bg-white rounded-2xl p-6 shadow-sm">
-          <h3 className="font-semibold text-gray-900 mb-3">🌱 Database</h3>
-          <p className="text-sm text-gray-500 mb-4">Populate Firestore with sample artists, categories, and earnings data.</p>
-          <button
-            onClick={handleSeedDatabase}
-            className="w-full py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-colors"
-          >
-            🌱 Seed Database with Sample Data
-          </button>
-          {seedingProgress && (
-            <p className="mt-3 text-sm text-center text-amber-600 animate-pulse">{seedingProgress}</p>
-          )}
-          {seedingStatus && (
-            <p className="mt-3 text-sm text-center text-gray-600">{seedingStatus}</p>
-          )}
-        </div> */}
-
-        {/* Session Debug */}
-        {/* <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          <button
-            onClick={() => setShowDebug(!showDebug)}
-            className="w-full flex items-center justify-between px-6 py-4"
-          >
-            <span className="font-semibold text-gray-700">🔧 Session Debug</span>
-            <ChevronRight size={16} className={`text-gray-400 transition-transform ${showDebug ? 'rotate-90' : ''}`} />
-          </button>
-          {showDebug && (
-            <div className="px-6 pb-4 space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-500">User ID:</span>
-                <span className="text-gray-700 font-mono text-xs">{currentUserId || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Role:</span>
-                <span className="text-gray-700">{userRole}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Is Artist:</span>
-                <span className={isArtist ? 'text-green-600' : 'text-red-500'}>{isArtist ? '✅ Yes' : '❌ No'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Artist Checked:</span>
-                <span className={artistChecked ? 'text-green-600' : 'text-yellow-500'}>{artistChecked ? '✅ Done' : '⏳ Pending'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Has Token:</span>
-                <span className="text-gray-700">{sessionInfo?.hasAccessToken ? '✅' : '❌'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Token Expired:</span>
-                <span className="text-gray-700">{sessionInfo?.isExpired ? '❌ Yes' : '✅ No'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Login Method:</span>
-                <span className="text-gray-700">{String(sessionInfo?.loginMethod || 'N/A')}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Time to Expiry:</span>
-                <span className="text-gray-700">{String(sessionInfo?.timeToExpiry || 'N/A')}</span>
-              </div>
             </div>
-          )}
-        </div> */}
+          </div>
 
-        {/* Logout */}
-        <button
-          onClick={logout}
-          className="w-full flex items-center justify-center gap-2 py-4 bg-white dark:bg-gray-900 rounded-2xl shadow-sm text-red-500 dark:text-red-400 font-semibold hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-        >
-          <LogOut size={20} />
-          Sign Out
-        </button>
-        {/* Edit Profile Modal */}
+          {/* ── Logout ── */}
+          <button className="pp-logout" onClick={logout}>
+            <LogOut size={18} />
+            Sign Out
+          </button>
+
+          {/* ── Footer ── */}
+          <div className="pp-footer">
+            HunarHub v1.0.0 · Made with ❤️ in India
+          </div>
+
+        </div>
+
+        {/* ════════════════════════════════
+            EDIT PROFILE MODAL — PREMIUM
+        ════════════════════════════════ */}
         {showEditModal && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowEditModal(false)}>
-            <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-              {/* Modal Header */}
-              <div className="sticky top-0 bg-white dark:bg-gray-900 border-b dark:border-gray-700 px-6 py-4 rounded-t-2xl flex items-center justify-between">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Edit Profile</h2>
-                <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-                  <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                </button>
+          <div className="ep-overlay" onClick={() => setShowEditModal(false)}>
+            <div className="ep-modal" onClick={e => e.stopPropagation()}>
+
+              {/* Drag pill */}
+              <div className="ep-pill" />
+
+              {/* ── Header ── */}
+              <div className="ep-header">
+                <div className="ep-header-row">
+                  <div className="ep-header-identity">
+                    <div className="ep-header-avatar">{initials}</div>
+                    <div>
+                      <div className="ep-header-title">Edit Profile</div>
+                      <div className="ep-header-sub">{currentUserName}</div>
+                    </div>
+                  </div>
+                  <button className="ep-close-btn" onClick={() => setShowEditModal(false)}>
+                    <X size={15} />
+                  </button>
+                </div>
               </div>
 
+              {/* ── Tab bar (only if artist) ── */}
+              {isArtist && !editSuccess && (
+                <div className="ep-tabs">
+                  <button className="ep-tab active">
+                    <div className="ep-tab-dot" />
+                    Personal Info
+                  </button>
+                  <button className="ep-tab active" style={{ color: '#d97706' }}>
+                    <div className="ep-tab-dot" />
+                    Artist Details
+                  </button>
+                </div>
+              )}
+
+              {/* ── Success ── */}
               {editSuccess ? (
-                <div className="p-8 text-center">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle className="w-8 h-8 text-green-600" />
+                <div className="ep-success">
+                  <div className="ep-success-confetti">🎉</div>
+                  <div className="ep-success-icon">
+                    <CheckCircle size={36} color="#16a34a" />
                   </div>
-                  <h3 className="text-lg font-bold text-gray-900">Profile Updated!</h3>
-                  <p className="text-gray-500 text-sm mt-1">Your changes have been saved.</p>
+                  <div className="ep-success-title">Profile Updated!</div>
+                  <div className="ep-success-sub">Your changes have been saved. The page will refresh shortly.</div>
                 </div>
               ) : (
-                <div className="p-6 space-y-5">
-                  {/* Customer Fields - Always shown */}
-                  <div className="bg-blue-50 rounded-xl p-4">
-                    <h3 className="font-semibold text-blue-800 text-sm mb-3">👤 Basic Info</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Display Name</label>
-                        <input
-                          type="text"
-                          value={editName}
-                          onChange={e => setEditName(e.target.value)}
-                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                        />
+                <>
+                  {/* ── Body ── */}
+                  <div className="ep-body">
+
+                    {/* ─── PERSONAL INFO ─── */}
+                    <div className="ep-section-label">
+                      <User size={11} /> Personal Information <span />
+                    </div>
+
+                    {/* Name + Phone in group */}
+                    <div className="ep-group">
+                      {/* Name */}
+                      <div className="ep-field">
+                        <label className="ep-field-label">Full Name</label>
+                        <div className="ep-input-row">
+                          <div className="ep-input-icon-box" style={{ background: '#eff6ff' }}>
+                            <User size={14} color="#3b82f6" />
+                          </div>
+                          <input
+                            className="ep-bare-input"
+                            type="text"
+                            value={editName}
+                            onChange={e => setEditName(e.target.value)}
+                            placeholder="Enter your full name"
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Email (cannot change)</label>
-                        <input
-                          type="email"
-                          value={currentUserEmail}
-                          disabled
-                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 text-gray-400"
-                        />
+
+                      {/* Email */}
+                      <div className="ep-field" style={{ opacity: 0.65 }}>
+                        <label className="ep-field-label">Email Address <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>· cannot be changed</span></label>
+                        <div className="ep-input-row">
+                          <div className="ep-input-icon-box" style={{ background: '#f1f5f9' }}>
+                            <Mail size={14} color="#94a3b8" />
+                          </div>
+                          <input className="ep-bare-input" type="email" value={currentUserEmail} disabled />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Phone Number</label>
-                        <input
-                          type="text"
-                          value={editPhone}
-                          onChange={e => setEditPhone(e.target.value)}
-                          placeholder="+91 9876543210"
-                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                        />
+
+                      {/* Phone */}
+                      <div className="ep-field">
+                        <label className="ep-field-label">Phone Number</label>
+                        <div className="ep-input-row">
+                          <div className="ep-input-icon-box" style={{ background: '#f0fdf4' }}>
+                            <Phone size={14} color="#16a34a" />
+                          </div>
+                          <input
+                            className="ep-bare-input"
+                            type="tel"
+                            value={editPhone}
+                            onChange={e => setEditPhone(e.target.value)}
+                            placeholder="+91 98765 43210"
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">State</label>
-                        <select
-                          value={editSelectedState}
-                          onChange={e => handleEditStateChange(e.target.value)}
-                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 bg-white"
-                        >
-                          <option value="">Select State</option>
-                          {getIndianStates().map(state => (
-                            <option key={state} value={state}>{state}</option>
-                          ))}
-                        </select>
+                    </div>
+
+                    {/* Location group */}
+                    <div className="ep-section-label" style={{ marginTop: 4 }}>
+                      <MapPin size={11} /> Location <span />
+                    </div>
+
+                    <div className="ep-group">
+                      {/* State */}
+                      <div className="ep-field">
+                        <label className="ep-field-label">State</label>
+                        <div className="ep-input-row">
+                          <div className="ep-input-icon-box" style={{ background: '#fdf4ff' }}>
+                            <MapPin size={14} color="#a855f7" />
+                          </div>
+                          <select
+                            className="ep-bare-select"
+                            value={editSelectedState}
+                            onChange={e => handleEditStateChange(e.target.value)}
+                          >
+                            <option value="">Select state…</option>
+                            {getIndianStates().map(state => (
+                              <option key={state} value={state}>{state}</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
+
+                      {/* City */}
                       {editSelectedState && (
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">City</label>
+                        <div className="ep-field">
+                          <label className="ep-field-label">City</label>
                           {editCityLoading ? (
-                            <p className="text-xs text-gray-400 py-2">Loading cities...</p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+                              <Loader2 size={14} className="animate-spin" style={{ color: '#d97706' }} />
+                              <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Loading cities…</span>
+                            </div>
                           ) : (
                             <>
-                              <input
-                                type="text"
-                                value={editCitySearch}
-                                onChange={e => setEditCitySearch(e.target.value)}
-                                placeholder="Search city..."
-                                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 mb-1"
-                              />
-                              {editCitySearch && filteredEditCities.length > 0 && (
-                                <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-xl">
+                              <div className="ep-input-row">
+                                <div className="ep-input-icon-box" style={{ background: '#fff7ed' }}>
+                                  <Search size={14} color="#f97316" />
+                                </div>
+                                <input
+                                  className="ep-bare-input"
+                                  type="text"
+                                  value={editCitySearch}
+                                  onChange={e => { setEditCitySearch(e.target.value); if (editSelectedCity && e.target.value !== editSelectedCity) setEditSelectedCity(''); }}
+                                  placeholder="Search city…"
+                                />
+                                {editSelectedCity && (
+                                  <button
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', color: '#94a3b8' }}
+                                    onClick={() => { setEditSelectedCity(''); setEditCitySearch(''); }}
+                                  >
+                                    <X size={13} />
+                                  </button>
+                                )}
+                              </div>
+                              {editCitySearch && !editSelectedCity && filteredEditCities.length > 0 && (
+                                <div className="ep-city-drop">
                                   {filteredEditCities.slice(0, 20).map(city => (
                                     <button
                                       key={city}
-                                      onClick={() => { setEditSelectedCity(city); setEditCitySearch(city) }}
-                                      className={`w-full text-left px-3 py-1.5 hover:bg-amber-50 text-xs ${editSelectedCity === city ? 'bg-amber-100 font-semibold text-amber-800' : 'text-gray-700'}`}
+                                      className={`ep-city-item ${editSelectedCity === city ? 'picked' : ''}`}
+                                      onClick={() => { setEditSelectedCity(city); setEditCitySearch(city); }}
                                     >
+                                      <MapPin size={11} style={{ flexShrink: 0, opacity: 0.5 }} />
                                       {city}
                                     </button>
                                   ))}
+                                </div>
+                              )}
+                              {editSelectedCity && (
+                                <div className="ep-hint success" style={{ marginTop: 6 }}>
+                                  <CheckCircle size={11} />
+                                  {editSelectedCity}, {editSelectedState}
                                 </div>
                               )}
                             </>
@@ -528,103 +1119,149 @@ export default function ProfilePage() {
                         </div>
                       )}
                     </div>
+
+                    {/* ─── ARTIST INFO ─── */}
+                    {isArtist && (
+                      <>
+                        <div className="ep-section-label" style={{ marginTop: 4 }}>
+                          <Palette size={11} /> Artist Details <span />
+                        </div>
+
+                        {/* Bio */}
+                        <div className="ep-group">
+                          <div className="ep-field">
+                            <label className="ep-field-label">
+                              Bio / About You
+                              <span style={{ marginLeft: 'auto', fontWeight: 500, textTransform: 'none', letterSpacing: 0, float: 'right', color: editBio.length > 270 ? '#ef4444' : '#94a3b8' }}>
+                                {editBio.length}/300
+                              </span>
+                            </label>
+                            <textarea
+                              className="ep-bare-textarea"
+                              rows={3}
+                              value={editBio}
+                              onChange={e => setEditBio(e.target.value.slice(0, 300))}
+                              placeholder="Describe your art style, experience, what makes your work unique…"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Skills */}
+                        <div className="ep-group">
+                          <div className="ep-field">
+                            <label className="ep-field-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span>Skills & Expertise</span>
+                              {editSkills.length > 0 && (
+                                <span style={{
+                                  padding: '2px 9px', borderRadius: 99,
+                                  background: 'linear-gradient(135deg, #d97706, #ea580c)',
+                                  color: '#fff', fontSize: '0.62rem', fontWeight: 800
+                                }}>
+                                  {editSkills.length} selected
+                                </span>
+                              )}
+                            </label>
+                            <div className="ep-skills-wrap" style={{ marginTop: 6 }}>
+                              {skillOptions.map(skill => (
+                                <button
+                                  key={skill}
+                                  className={`ep-skill ${editSkills.includes(skill) ? 'on' : 'off'}`}
+                                  onClick={() => toggleEditSkill(skill)}
+                                >
+                                  {skill}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Price + Availability */}
+                        <div className="ep-group">
+                          {/* Price */}
+                          <div className="ep-field">
+                            <label className="ep-field-label">Starting Price</label>
+                            <div className="ep-input-row">
+                              <div className="ep-input-icon-box" style={{ background: '#fffbeb' }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 900, color: '#d97706' }}>₹</span>
+                              </div>
+                              <div className="ep-price-row" style={{ flex: 1 }}>
+                                <input
+                                  className="ep-bare-input"
+                                  type="number"
+                                  value={editPriceMin}
+                                  onChange={e => setEditPriceMin(e.target.value)}
+                                  placeholder="500"
+                                  style={{ flex: 1 }}
+                                />
+                                {editPriceMin && parseInt(editPriceMin) > 0 && (
+                                  <span className="ep-price-suffix">
+                                    → max ~₹{(parseInt(editPriceMin) * 5).toLocaleString('en-IN')}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Availability */}
+                          <div className="ep-field">
+                            <label className="ep-field-label">Availability Status</label>
+                            <div className="ep-avail-grid" style={{ marginTop: 8 }}>
+                              <button
+                                className={`ep-avail-card ${editAvailability === 'available' ? 'green-on' : 'off-state'}`}
+                                onClick={() => setEditAvailability('available')}
+                              >
+                                <div className="ep-avail-icon" style={{ background: editAvailability === 'available' ? 'rgba(34,197,94,0.15)' : '#f1f5f9' }}>
+                                  🟢
+                                </div>
+                                <div className="ep-avail-label" style={{ color: editAvailability === 'available' ? '#15803d' : '#94a3b8' }}>
+                                  Available
+                                </div>
+                                <div className="ep-avail-desc">Ready for new orders</div>
+                              </button>
+                              <button
+                                className={`ep-avail-card ${editAvailability === 'busy' ? 'red-on' : 'off-state'}`}
+                                onClick={() => setEditAvailability('busy')}
+                              >
+                                <div className="ep-avail-icon" style={{ background: editAvailability === 'busy' ? 'rgba(239,68,68,0.1)' : '#f1f5f9' }}>
+                                  🔴
+                                </div>
+                                <div className="ep-avail-label" style={{ color: editAvailability === 'busy' ? '#b91c1c' : '#94a3b8' }}>
+                                  Busy
+                                </div>
+                                <div className="ep-avail-desc">Not taking new orders</div>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Spacer so footer doesn't hide last field */}
+                    <div style={{ height: 4 }} />
                   </div>
 
-                  {/* Artist Fields - Only shown if user is an artist */}
-                  {isArtist && (
-                    <div className="bg-amber-50 rounded-xl p-4">
-                      <h3 className="font-semibold text-amber-800 text-sm mb-3">🎨 Artist Info</h3>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Bio / About You</label>
-                          <textarea
-                            value={editBio}
-                            onChange={e => setEditBio(e.target.value)}
-                            rows={3}
-                            placeholder="Tell about your art style and experience..."
-                            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 resize-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Skills</label>
-                          <div className="flex flex-wrap gap-1.5">
-                            {skillOptions.map(skill => (
-                              <button
-                                key={skill}
-                                onClick={() => toggleEditSkill(skill)}
-                                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${editSkills.includes(skill)
-                                    ? 'bg-amber-600 text-white'
-                                    : 'bg-white text-gray-600 border border-gray-200 hover:border-amber-300'
-                                  }`}
-                              >
-                                {skill}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Starting Price (₹)</label>
-                          <input
-                            type="number"
-                            value={editPriceMin}
-                            onChange={e => setEditPriceMin(e.target.value)}
-                            placeholder="500"
-                            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Availability</label>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setEditAvailability('available')}
-                              className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${editAvailability === 'available'
-                                  ? 'bg-green-100 text-green-700 border-2 border-green-400'
-                                  : 'bg-white text-gray-500 border border-gray-200'
-                                }`}
-                            >🟢 Available</button>
-                            <button
-                              onClick={() => setEditAvailability('busy')}
-                              className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${editAvailability === 'busy'
-                                  ? 'bg-red-100 text-red-700 border-2 border-red-400'
-                                  : 'bg-white text-gray-500 border border-gray-200'
-                                }`}
-                            >🔴 Busy</button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Save Button */}
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      onClick={() => setShowEditModal(false)}
-                      className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold text-sm transition-all"
-                    >
+                  {/* ── Footer ── */}
+                  <div className="ep-footer">
+                    <button className="ep-cancel" onClick={() => setShowEditModal(false)}>
                       Cancel
                     </button>
                     <button
+                      className="ep-save"
                       onClick={handleSaveEdit}
                       disabled={editLoading || !editName.trim()}
-                      className="flex-1 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-semibold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                      {editLoading ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
-                      ) : (
-                        <><Save className="w-4 h-4" /> Update Profile</>
-                      )}
+                      {editLoading
+                        ? <><Loader2 size={16} className="animate-spin" /> Saving…</>
+                        : <><Save size={16} /> Save Changes</>
+                      }
                     </button>
                   </div>
-                </div>
+                </>
               )}
             </div>
           </div>
         )}
-
-        <div className="text-center text-xs text-gray-400 pb-4">
-          HunarHub v1.0.0 • Made with ❤️ in India
-        </div>
       </div>
-    </div>
+    </>
   );
 }

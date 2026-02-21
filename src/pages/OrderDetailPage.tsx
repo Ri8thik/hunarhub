@@ -267,7 +267,7 @@ export function OrderDetailPage() {
               <textarea
                 placeholder="Share your experience with this artist — what did they do well? How was the quality?"
                 value={reviewText}
-                onChange={e => { setReviewText(e.target.value); setReviewError(''); }}
+                onChange={e => { setReviewText(e.target.value.replace(/[0-9]/g, '')); setReviewError(''); }}
                 rows={4}
                 className="w-full px-4 py-3 bg-stone-50 dark:bg-gray-800 text-stone-800 dark:text-gray-100 dark:placeholder-gray-500 border border-stone-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
               />

@@ -277,10 +277,31 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
 export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
   if (!isFirebaseConfigured()) return;
   try {
+    // 1. Update the order status
     await updateDoc(doc(db, 'orders', orderId), {
       status,
       updatedAt: serverTimestamp(),
     });
+
+    // 2. If marked completed, increment completedOrders on the artist doc
+    if (status === 'completed') {
+      const orderSnap = await getDoc(doc(db, 'orders', orderId));
+      if (orderSnap.exists()) {
+        const artistId = orderSnap.data().artistId as string;
+        if (artistId) {
+          const artistRef = doc(db, 'artists', artistId);
+          const artistSnap = await getDoc(artistRef);
+          if (artistSnap.exists()) {
+            const current = (artistSnap.data().completedOrders as number) || 0;
+            await updateDoc(artistRef, {
+              completedOrders: current + 1,
+              updatedAt: serverTimestamp(),
+            });
+            console.log('[Firestore] ✅ completedOrders incremented for artist:', artistId, '->', current + 1);
+          }
+        }
+      }
+    }
   } catch (error) {
     console.error('[Firestore] Error updating order status:', error);
     throw error;

@@ -653,7 +653,7 @@ export default function MyArtistProfilePage() {
                           <label className="em-lbl">Artist Display Name *</label>
                           <div className="em-row">
                             <User size={14} style={{ color: '#d97706', flexShrink: 0 }} />
-                            <input className="em-input" value={eName} onChange={e => setEName(e.target.value)} placeholder="Your artist name" maxLength={60} />
+                            <input className="em-input" value={eName} onChange={e => setEName(e.target.value.replace(/[0-9]/g, ''))} placeholder="Your artist name" maxLength={60} />
                           </div>
                         </div>
                       </div>
@@ -666,7 +666,7 @@ export default function MyArtistProfilePage() {
                             Bio / About
                             <span style={{ float: 'right', textTransform: 'none', letterSpacing: 0, fontWeight: 500, color: eBio.length > 270 ? '#f59e0b' : '#cbd5e1' }}>{eBio.length}/300</span>
                           </label>
-                          <textarea className="em-textarea" rows={4} value={eBio} onChange={e => setEBio(e.target.value.slice(0, 300))} placeholder="Describe your art style, experience, what makes your work unique…" />
+                          <textarea className="em-textarea" rows={4} value={eBio} onChange={e => setEBio(e.target.value.replace(/[0-9]/g, '').slice(0, 300))} placeholder="Describe your art style, experience, what makes your work unique…" />
                         </div>
                       </div>
 

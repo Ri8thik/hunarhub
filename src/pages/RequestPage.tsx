@@ -787,7 +787,7 @@ export function RequestPage() {
                     placeholder="e.g., Family Portrait, Wedding Invitation Design…"
                     value={title}
                     maxLength={110}
-                    onChange={ev => { setTitle(ev.target.value); runValidate({ title: ev.target.value }); }}
+                    onChange={ev => { setTitle(ev.target.value.replace(/[0-9]/g, '')); runValidate({ title: ev.target.value }); }}
                     onBlur={() => touch('title')}
                   />
                   <div className={`rq-char${title.length > 85 ? ' warn' : ''}${title.length > 100 ? ' over' : ''}`}>
@@ -852,7 +852,7 @@ export function RequestPage() {
                     value={description}
                     maxLength={1050}
                     rows={5}
-                    onChange={ev => { setDescription(ev.target.value); runValidate({ description: ev.target.value }); }}
+                    onChange={ev => { setDescription(ev.target.value.replace(/[0-9]/g, '')); runValidate({ description: ev.target.value }); }}
                     onBlur={() => touch('description')}
                   />
                   <div className={`rq-char${description.length > 800 ? ' warn' : ''}${description.length > 980 ? ' over' : ''}`}>

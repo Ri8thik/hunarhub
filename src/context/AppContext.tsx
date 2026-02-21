@@ -396,15 +396,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ---- Order Management ----
   const updateOrderStatusFn = useCallback(async (orderId: string, status: OrderStatus) => {
+    // 1. Optimistically update the order in local state
     setOrders(prev => prev.map(o =>
       o.id === orderId ? { ...o, status, updatedAt: new Date().toISOString().split('T')[0] } : o
     ));
+
+    // 2. If completing, also optimistically increment completedOrders in local artists state
+    if (status === 'completed') {
+      const order = orders.find(o => o.id === orderId);
+      if (order?.artistId) {
+        setArtists(prev => prev.map(a =>
+          a.id === order.artistId
+            ? { ...a, completedOrders: (a.completedOrders || 0) + 1 }
+            : a
+        ));
+      }
+    }
+
     try {
+      // 3. Persist to Firestore (also updates artist doc atomically)
       await firestoreUpdateOrderStatus(orderId, status);
     } catch (error) {
       console.error('[AppContext] Error updating order status in Firestore:', error);
     }
-  }, []);
+  }, [orders]);
 
   const addOrder = useCallback(async (order: Order) => {
     setOrders(prev => [order, ...prev]);

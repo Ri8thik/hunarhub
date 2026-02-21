@@ -858,7 +858,7 @@ export default function ArtistProfilePage() {
                       <textarea
                         className="ap-textarea"
                         value={reviewComment}
-                        onChange={e => setReviewComment(e.target.value)}
+                        onChange={e => setReviewComment(e.target.value.replace(/[0-9]/g, ''))}
                         placeholder="Share your experience with this artist..."
                         rows={3}
                       />

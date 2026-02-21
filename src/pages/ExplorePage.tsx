@@ -129,7 +129,9 @@ const styles = `
     transition: all 0.28s ease;
     box-shadow: 0 2px 10px rgba(0,0,0,0.05);
     animation: fadeInUp 0.4s ease both;
-    display: block; width: 100%;
+    display: flex; flex-direction: column;
+    width: 100%; height: 220px;
+    box-sizing: border-box;
   }
   .dark .ep-artist-card {
     background: #0f172a; border-color: #1e293b;
@@ -315,10 +317,10 @@ export function ExplorePage() {
                 style={{ animationDelay: `${i * 0.05}s` }}
                 onClick={() => navigate(`/artist/${artist.id}`)}
               >
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                {/* Header: Avatar + Name/Location/Badge */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexShrink: 0 }}>
                   <Avatar name={artist.name} size="lg" />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    {/* Name row */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                       <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }} className="dark:text-gray-100">
                         {artist.name}
@@ -328,43 +330,39 @@ export function ExplorePage() {
                         {artist.availability === 'available' ? '● Available' : '● Busy'}
                       </span>
                     </div>
-
-                    {/* Location */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <MapPin size={11} color="#94a3b8" />
-                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{artist.location}</span>
-                    </div>
-
-                    {/* Bio */}
-                    {artist.bio && (
-                      <p style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.55, marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} className="dark:text-gray-400">
-                        {artist.bio}
-                      </p>
-                    )}
-
-                    {/* Stats row */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <Star size={12} style={{ fill: '#f59e0b', color: '#f59e0b' }} />
-                        <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#1e293b' }} className="dark:text-gray-100">{artist.rating}</span>
-                        <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>({artist.reviewCount})</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <Clock size={11} color="#94a3b8" />
-                        <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{artist.responseTime}</span>
-                      </div>
-                      <span style={{ marginLeft: 'auto', fontSize: '0.85rem', fontWeight: 800, color: '#d97706' }} className="dark:text-amber-400">
-                        ₹{artist.priceRange.min}+
-                      </span>
-                    </div>
-
-                    {/* Skills */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                      {artist.skills.map(skill => (
-                        <span key={skill} className="ep-skill-chip">{skill}</span>
-                      ))}
+                      <span style={{ fontSize: '0.75rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{artist.location}</span>
                     </div>
                   </div>
+                </div>
+
+                {/* Bio — always 2 lines of space */}
+                <p style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5, flex: 1, margin: '8px 0', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} className="dark:text-gray-400">
+                  {artist.bio || '\u00A0'}
+                </p>
+
+                {/* Stats row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <Star size={12} style={{ fill: '#f59e0b', color: '#f59e0b' }} />
+                    <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#1e293b' }} className="dark:text-gray-100">{artist.rating}</span>
+                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>({artist.reviewCount})</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <Clock size={11} color="#94a3b8" />
+                    <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{artist.responseTime}</span>
+                  </div>
+                  <span style={{ marginLeft: 'auto', fontSize: '0.85rem', fontWeight: 800, color: '#d97706' }} className="dark:text-amber-400">
+                    ₹{artist.priceRange.min}+
+                  </span>
+                </div>
+
+                {/* Skills — single row, no wrap */}
+                <div style={{ display: 'flex', gap: 5, overflow: 'hidden', flexShrink: 0 }}>
+                  {artist.skills.slice(0, 4).map(skill => (
+                    <span key={skill} className="ep-skill-chip" style={{ whiteSpace: 'nowrap' }}>{skill}</span>
+                  ))}
                 </div>
               </button>
             ))}

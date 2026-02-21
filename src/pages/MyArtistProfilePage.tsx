@@ -219,14 +219,16 @@ const styles = `
   @media(min-width:640px){ .em-overlay{ align-items:center; } }
 
   .em-sheet {
-    background:#fff; width:100%; max-width:560px; max-height:95vh;
-    border-radius:28px 28px 0 0; overflow:hidden;
+    background:#fff; width:100%; max-width:560px;
+    height:92vh;
+    border-radius:24px 24px 0 0;
+    overflow:hidden;
     display:flex; flex-direction:column;
     animation:map-slide 0.4s cubic-bezier(0.22,1,0.36,1) both;
     box-shadow:0 -8px 48px rgba(0,0,0,0.22);
   }
   @media(min-width:640px){
-    .em-sheet{ border-radius:26px; animation:map-scale 0.35s cubic-bezier(0.22,1,0.36,1) both; }
+    .em-sheet{ border-radius:26px; height:auto; max-height:90vh; animation:map-scale 0.35s cubic-bezier(0.22,1,0.36,1) both; }
   }
   .dark .em-sheet { background:#0c1220; }
 
@@ -267,11 +269,11 @@ const styles = `
   .dark .em-tab.active { color:#fbbf24; border-bottom-color:#fbbf24; }
 
   /* Body scroll area */
-  .em-body { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:16px; scrollbar-width:thin; scrollbar-color:#e2e8f0 transparent; }
+  .em-body { flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:20px; display:flex; flex-direction:column; gap:16px; scrollbar-width:thin; scrollbar-color:#e2e8f0 transparent; }
   .dark .em-body { scrollbar-color:#1e293b transparent; }
 
   /* Field group — same as ep-group in ProfilePage */
-  .em-group { background:#f8fafc; border:1.5px solid #f1f5f9; border-radius:18px; overflow:hidden; transition:border-color 0.2s; }
+  .em-group { background:#f8fafc; border:1.5px solid #f1f5f9; border-radius:18px; transition:border-color 0.2s; }
   .dark .em-group { background:#111827; border-color:#1e293b; }
   .em-group:focus-within { border-color:rgba(217,119,6,0.4); }
 

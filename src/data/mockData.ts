@@ -9,6 +9,22 @@ export const categories: Category[] = [
   { id: '6', name: 'Calligraphy', icon: '🖋️', count: 64, color: 'bg-orange-100 text-orange-800' },
   { id: '7', name: 'Digital Art', icon: '💻', count: 178, color: 'bg-cyan-100 text-cyan-800' },
   { id: '8', name: 'Sculpture', icon: '🗿', count: 45, color: 'bg-stone-100 text-stone-800' },
+  { id: '9',  name: 'Pencil Drawing',   icon: '✏️',  count: 0,   color: 'bg-stone-100 text-stone-800' },
+  { id: '10', name: 'Charcoal Art',     icon: '🖤',  count: 0,   color: 'bg-gray-100 text-gray-800' },
+  { id: '11', name: 'Caricature',       icon: '😄',  count: 0,   color: 'bg-yellow-100 text-yellow-800' },
+  { id: '12', name: 'Oil Painting',     icon: '🎨',  count: 0,   color: 'bg-red-100 text-red-800' },
+  { id: '13', name: 'Watercolor',       icon: '💧',  count: 0,   color: 'bg-sky-100 text-sky-800' },
+  { id: '14', name: 'Acrylic Painting', icon: '🖌️',  count: 0,   color: 'bg-pink-100 text-pink-800' },
+  { id: '15', name: 'Vector Art',       icon: '📐',  count: 0,   color: 'bg-indigo-100 text-indigo-800' },
+  { id: '16', name: 'Mandala Art',      icon: '🌸',  count: 0,   color: 'bg-fuchsia-100 text-fuchsia-800' },
+  { id: '17', name: 'Rangoli Design',   icon: '🪔',  count: 0,   color: 'bg-orange-100 text-orange-800' },
+  { id: '18', name: 'Mehndi Design',    icon: '🌿',  count: 0,   color: 'bg-green-100 text-green-800' },
+  { id: '19', name: 'Wall Mural',       icon: '🏛️',  count: 0,   color: 'bg-teal-100 text-teal-800' },
+  { id: '20', name: 'Clay Sculpture',   icon: '🏺',  count: 0,   color: 'bg-amber-100 text-amber-800' },
+  { id: '21', name: 'Wood Carving',     icon: '🪵',  count: 0,   color: 'bg-lime-100 text-lime-800' },
+  { id: '22', name: 'Paper Craft',      icon: '📄',  count: 0,   color: 'bg-sky-100 text-sky-800' },
+  { id: '23', name: 'Handmade Jewelry', icon: '💍',  count: 0,   color: 'bg-violet-100 text-violet-800' },
+  { id: '24', name: 'Embroidery',       icon: '🧵',  count: 0,   color: 'bg-rose-100 text-rose-800' },
 ];
 
 export const artists: Artist[] = [

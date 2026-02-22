@@ -221,3 +221,59 @@ export async function seedDatabase(
 
   return { success, errors };
 }
+
+/**
+ * Add only the missing categories to Firestore without touching any other data.
+ * Safe to run even if some categories already exist — uses setDoc (upsert).
+ */
+export async function seedMissingCategories(
+  onProgress?: (step: string) => void
+): Promise<{ success: boolean; added: number; errors: string[] }> {
+  if (!isFirebaseConfigured()) {
+    return { success: false, added: 0, errors: ['Firebase not configured'] };
+  }
+
+  const missingCategories = [
+    { id: '9',  name: 'Pencil Drawing',   icon: '✏️',  count: 0, color: 'bg-stone-100 text-stone-800' },
+    { id: '10', name: 'Charcoal Art',     icon: '🖤',  count: 0, color: 'bg-gray-100 text-gray-800' },
+    { id: '11', name: 'Caricature',       icon: '😄',  count: 0, color: 'bg-yellow-100 text-yellow-800' },
+    { id: '12', name: 'Oil Painting',     icon: '🎨',  count: 0, color: 'bg-red-100 text-red-800' },
+    { id: '13', name: 'Watercolor',       icon: '💧',  count: 0, color: 'bg-sky-100 text-sky-800' },
+    { id: '14', name: 'Acrylic Painting', icon: '🖌️',  count: 0, color: 'bg-pink-100 text-pink-800' },
+    { id: '15', name: 'Vector Art',       icon: '📐',  count: 0, color: 'bg-indigo-100 text-indigo-800' },
+    { id: '16', name: 'Mandala Art',      icon: '🌸',  count: 0, color: 'bg-fuchsia-100 text-fuchsia-800' },
+    { id: '17', name: 'Rangoli Design',   icon: '🪔',  count: 0, color: 'bg-orange-100 text-orange-800' },
+    { id: '18', name: 'Mehndi Design',    icon: '🌿',  count: 0, color: 'bg-green-100 text-green-800' },
+    { id: '19', name: 'Wall Mural',       icon: '🏛️',  count: 0, color: 'bg-teal-100 text-teal-800' },
+    { id: '20', name: 'Clay Sculpture',   icon: '🏺',  count: 0, color: 'bg-amber-100 text-amber-800' },
+    { id: '21', name: 'Wood Carving',     icon: '🪵',  count: 0, color: 'bg-lime-100 text-lime-800' },
+    { id: '22', name: 'Paper Craft',      icon: '📄',  count: 0, color: 'bg-sky-100 text-sky-800' },
+    { id: '23', name: 'Handmade Jewelry', icon: '💍',  count: 0, color: 'bg-violet-100 text-violet-800' },
+    { id: '24', name: 'Embroidery',       icon: '🧵',  count: 0, color: 'bg-rose-100 text-rose-800' },
+  ];
+
+  const errors: string[] = [];
+  let added = 0;
+
+  try {
+    onProgress?.('Adding missing categories…');
+    for (const cat of missingCategories) {
+      await setDoc(doc(db, 'categories', cat.id), {
+        name: cat.name,
+        icon: cat.icon,
+        count: cat.count,
+        color: cat.color,
+      });
+      added++;
+    }
+    console.log(`[Seed] ✅ Added ${added} missing categories`);
+    onProgress?.(`Done! Added ${added} categories ✅`);
+  } catch (error) {
+    const msg = `Failed to add categories: ${error}`;
+    console.error('[Seed]', msg);
+    errors.push(msg);
+    onProgress?.('Failed ❌');
+  }
+
+  return { success: errors.length === 0, added, errors };
+}

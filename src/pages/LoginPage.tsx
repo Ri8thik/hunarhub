@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, Palette, Loader2, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Palette, Phone, Loader2, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { cn } from '@/utils/cn';
 import {
@@ -10,6 +10,7 @@ import {
   resetPassword,
 } from '@/services/authService';
 import { isFirebaseConfigured } from '@/config/firebase';
+import { createUserProfile } from '@/services/firestoreService';
 
 export function LoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -17,6 +18,7 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -30,6 +32,12 @@ export function LoginPage() {
 
   const clearMessages = () => { setError(''); setSuccess(''); setShowRegisterHint(false); };
 
+  // Phone validation helper
+  const validatePhone = (p: string) => {
+    const digits = p.replace(/\D/g, '');
+    return digits.length === 10 && /^[6-9]/.test(digits);
+  };
+
   // ── Email Login / Register ──────────────────────────────────
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,8 +48,22 @@ export function LoginPage() {
       if (mode === 'register') {
         if (!name.trim()) { setError('Please enter your full name'); setLoading(false); return; }
         if (!email.trim()) { setError('Please enter your email address'); setLoading(false); return; }
+        if (!phone.trim()) { setError('Please enter your mobile number'); setLoading(false); return; }
+        if (!validatePhone(phone)) { setError('Enter a valid 10-digit Indian mobile number (starting with 6-9)'); setLoading(false); return; }
         if (password.length < 6) { setError('Password must be at least 6 characters'); setLoading(false); return; }
         result = await registerWithEmail(email, password, name, 'customer');
+        if (result.success && result.user) {
+          // Save phone to Firestore right after registration
+          await createUserProfile(result.user.uid, {
+            name: name.trim(),
+            email: email.trim(),
+            role: 'customer',
+            phone: phone.replace(/\D/g, '').replace(/(\d{5})(\d{5})/, '$1 $2'),
+            avatar: '',
+            location: '',
+            joinedDate: new Date().toISOString(),
+          });
+        }
       } else {
         if (!email.trim()) { setError('Please enter your email address'); setLoading(false); return; }
         if (!password.trim()) { setError('Please enter your password'); setLoading(false); return; }
@@ -269,6 +291,28 @@ export function LoginPage() {
                 <input type="text" placeholder="e.g. Rahul Sharma" value={name}
                   onChange={e => setName(e.target.value)}
                   className={inputCls} />
+              </div>
+            )}
+
+            {/* Phone (register only) */}
+            {mode === 'register' && (
+              <div>
+                <label className={labelCls}>Mobile Number <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 dark:text-gray-500" />
+                  <input
+                    type="tel"
+                    placeholder="10-digit mobile number"
+                    value={phone}
+                    onChange={e => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setPhone(digits);
+                    }}
+                    maxLength={10}
+                    className={cn(inputCls, 'pl-11')}
+                  />
+                </div>
+                <p className="text-[11px] text-stone-400 dark:text-gray-500 mt-1.5">Indian mobile number starting with 6, 7, 8, or 9</p>
               </div>
             )}
 

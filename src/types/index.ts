@@ -53,6 +53,7 @@ export interface Order {
   id: string;
   customerId: string;
   customerName: string;
+  customerPhone: string;   // stored in order — ONLY visible to customer, never to artist
   artistId: string;
   artistName: string;
   title: string;

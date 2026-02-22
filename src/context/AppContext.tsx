@@ -42,6 +42,7 @@ interface AppState {
   currentUserId: string;
   currentUserName: string;
   currentUserEmail: string;
+  currentUserPhone: string;
   sessionData: SessionUserData | null;
   artists: Artist[];
   categories: Category[];
@@ -98,6 +99,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUserId, setCurrentUserId] = useState('');
   const [currentUserName, setCurrentUserName] = useState('');
   const [currentUserEmail, setCurrentUserEmail] = useState('');
+  const [currentUserPhone, setCurrentUserPhone] = useState('');
   const [sessionData, setSessionData] = useState<SessionUserData | null>(null);
   
   // Data from Firestore
@@ -261,6 +263,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             await restoreSession();
             // Ensure user exists in Firestore DB
             await ensureUserInFirestore(userData.uid, userData.email || '', userData.displayName || 'User');
+            fetchUserPhone(userData.uid);
             fetchOrders(userData.uid, role);
             // Check artist status from Firestore DB
             await checkArtistStatusFromDB(userData.uid);
@@ -291,7 +294,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         
         // Ensure user exists in Firestore DB
         ensureUserInFirestore(user.uid, user.email || '', user.displayName || 'User');
-        
+        fetchUserPhone(user.uid);
         fetchOrders(user.uid, role);
         
         // Check artist status from Firestore DB on auth change
@@ -344,6 +347,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('session-expired', handleSessionExpired);
   }, []);
 
+  // ---- Fetch phone from Firestore DB ----
+  const fetchUserPhone = useCallback(async (uid: string) => {
+    if (!isFirebaseConfigured()) return;
+    try {
+      const userSnap = await getDoc(doc(db, 'users', uid));
+      if (userSnap.exists()) {
+        setCurrentUserPhone(userSnap.data().phone || '');
+      }
+    } catch (err) {
+      console.error('[AppContext] Error fetching user phone:', err);
+    }
+  }, []);
+
   // ---- Login (everyone starts as customer) ----
   const login = useCallback((role: UserRole, userId?: string, userName?: string) => {
     setIsLoggedIn(true);
@@ -359,7 +375,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       
       // Ensure user exists in Firestore DB
       ensureUserInFirestore(userData.uid, userData.email || '', userData.displayName || 'User');
-      
+      fetchUserPhone(userData.uid);
       fetchOrders(userData.uid, 'customer');
       
       // Check artist status from Firestore DB
@@ -371,7 +387,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setCurrentUserName(name);
       fetchOrders(id, role);
     }
-  }, [fetchOrders, checkArtistStatusFromDB]);
+  }, [fetchOrders, checkArtistStatusFromDB, fetchUserPhone]);
+
+
 
   // ---- Logout ----
   const logout = useCallback(async () => {
@@ -381,6 +399,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCurrentUserId('');
     setCurrentUserName('');
     setCurrentUserEmail('');
+    setCurrentUserPhone('');
     setUserRole('customer');
     setIsArtist(false);
     setArtistChecked(false);
@@ -479,6 +498,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const orderData: CreateOrderData = {
         customerId: order.customerId,
         customerName: order.customerName,
+        customerPhone: order.customerPhone || '',
         artistId: order.artistId,
         artistName: order.artistName,
         title: order.title,
@@ -514,7 +534,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       isLoggedIn, isLoading, userRole, isArtist, artistChecked,
-      currentUserId, currentUserName, currentUserEmail,
+      currentUserId, currentUserName, currentUserEmail, currentUserPhone,
       sessionData, artists, categories, orders,
       artistsLoading, categoriesLoading, ordersLoading,
       darkMode, unreadCount,

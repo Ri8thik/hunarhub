@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getIndianStates, getCitiesByState } from '@/services/locationService'
 import ImageUploader from '@/components/ImageUploader'
 import { useApp } from '@/context/AppContext'
 import { addArtist } from '@/services/firestoreService'
-import { ArrowLeft, Save, Loader2, CheckCircle } from 'lucide-react'
+import { doc, getDoc, updateDoc } from 'firebase/firestore'
+import { db } from '@/config/firebase'
+import { ArrowLeft, Save, Loader2, CheckCircle, Phone, CheckCircle2 } from 'lucide-react'
 
 const skillOptions = [
   'Sketch', 'Pencil Drawing', 'Charcoal Art', 'Portrait', 'Caricature',
@@ -26,9 +28,28 @@ export default function ArtistSetupPage() {
   const [skills, setSkills] = useState<string[]>([])
   const [priceStart, setPriceStart] = useState('')
   const [portfolioImages, setPortfolioImages] = useState<string[]>([])
+  const [phone, setPhone] = useState('')
+  const [phoneFromDB, setPhoneFromDB] = useState('')   // fetched from users collection
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+
+  // Fetch phone from users collection on mount
+  useEffect(() => {
+    if (!currentUserId) return
+    ;(async () => {
+      try {
+        const snap = await getDoc(doc(db, 'users', currentUserId))
+        if (snap.exists()) {
+          const saved = (snap.data().phone || '').trim()
+          setPhoneFromDB(saved)
+          if (saved) setPhone(saved)
+        }
+      } catch (err) {
+        console.error('[ArtistSetup] Failed to fetch user phone:', err)
+      }
+    })()
+  }, [currentUserId])
 
   const handleStateChange = async (state: string) => {
     setSelectedState(state)
@@ -56,11 +77,29 @@ export default function ArtistSetupPage() {
     if (skills.length === 0) { setError('Please select at least one skill'); return }
     if (!priceStart) { setError('Please enter your starting price'); return }
 
+    // Phone required if not already on file
+    if (!phoneFromDB.trim()) {
+      const digits = phone.replace(/\D/g, '')
+      if (!phone.trim()) { setError('Please enter your mobile number'); return }
+      if (digits.length !== 10) { setError('Enter a valid 10-digit mobile number'); return }
+      if (!/^[6-9]/.test(digits)) { setError('Mobile number must start with 6, 7, 8, or 9'); return }
+    }
+
     setSaving(true)
     setError('')
 
     try {
       const location = selectedCity ? `${selectedCity}, ${selectedState}` : selectedState
+
+      // Save phone to users collection if it wasn't already there
+      if (!phoneFromDB.trim() && phone.trim() && currentUserId) {
+        const digits = phone.replace(/\D/g, '')
+        const formatted = digits.replace(/(\d{5})(\d{5})/, '+91 $1 $2')
+        await updateDoc(doc(db, 'users', currentUserId), {
+          phone: formatted,
+          updatedAt: new Date().toISOString(),
+        })
+      }
 
       const artistData = {
         id: currentUserId || 'demo-artist',
@@ -143,6 +182,49 @@ export default function ArtistSetupPage() {
             placeholder="Your artist name"
             className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 dark:placeholder-gray-500"
           />
+        </div>
+
+        {/* Phone Number */}
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            Mobile Number {!phoneFromDB && <span className="text-red-500">*</span>}
+          </label>
+          {phoneFromDB ? (
+            /* Phone on file — read-only */
+            <div>
+              <div className="relative flex items-center">
+                <Phone className="absolute left-3.5 w-4 h-4 text-gray-400 dark:text-gray-500 pointer-events-none" />
+                <input
+                  type="tel"
+                  value={phone}
+                  readOnly
+                  disabled
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-xl cursor-not-allowed opacity-75"
+                />
+                <CheckCircle2 className="absolute right-3.5 w-4 h-4 text-green-500 pointer-events-none" />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-green-500" />
+                Auto-filled from your profile. To change, edit from Profile settings.
+              </p>
+            </div>
+          ) : (
+            /* No phone on file — editable, required */
+            <div>
+              <div className="relative flex items-center">
+                <Phone className="absolute left-3.5 w-4 h-4 text-gray-400 dark:text-gray-500 pointer-events-none" />
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  placeholder="10-digit mobile number"
+                  maxLength={10}
+                  className="w-full pl-10 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 dark:placeholder-gray-500"
+                />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Indian mobile number starting with 6, 7, 8, or 9 — saved to your profile</p>
+            </div>
+          )}
         </div>
 
         {/* Bio */}

@@ -215,6 +215,7 @@ export async function getCategories(): Promise<Category[]> {
 export interface CreateOrderData {
   customerId: string;
   customerName: string;
+  customerPhone: string;   // stored but NEVER exposed to artist
   artistId: string;
   artistName: string;
   title: string;

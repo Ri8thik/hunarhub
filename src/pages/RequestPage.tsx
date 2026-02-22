@@ -3,11 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Upload, Calendar, IndianRupee, FileText,
   Loader2, MapPin, Clock, AlertCircle, Sparkles,
-  Palette, Star, Zap, X, Image, CheckCircle2
+  Palette, Star, Zap, X, Image, CheckCircle2, Phone
 } from 'lucide-react';
 import { getArtistById, createOrder, createNotification } from '@/services/firestoreService';
 import { validateImage, imageToBase64 } from '@/services/imageService';
 import { useApp } from '@/context/AppContext';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { db } from '@/config/firebase';
 import { Avatar } from '@/components/Avatar';
 import { type Artist } from '@/types';
 
@@ -19,6 +21,7 @@ const todayStr = () => new Date().toISOString().split('T')[0];
 function validate(f: {
   title: string; category: string; description: string;
   budget: string; deadline: string; artistPriceMin: number;
+  phone: string; phoneRequired: boolean;
 }) {
   const e: Record<string, string> = {};
   if (!f.title.trim()) e.title = 'Title is required';
@@ -41,6 +44,14 @@ function validate(f: {
 
   if (!f.deadline) e.deadline = 'Deadline is required';
   else if (f.deadline <= todayStr()) e.deadline = 'Must be a future date';
+
+  // Phone validation — required when no phone on file (Google users)
+  if (f.phoneRequired || f.phone.trim()) {
+    const digits = f.phone.replace(/\D/g, '');
+    if (!f.phone.trim()) e.phone = 'Mobile number is required to contact you';
+    else if (digits.length !== 10) e.phone = 'Enter a valid 10-digit mobile number';
+    else if (!/^[6-9]/.test(digits)) e.phone = 'Number must start with 6, 7, 8, or 9';
+  }
 
   return e;
 }
@@ -466,6 +477,28 @@ export function RequestPage() {
   const [category, setCategory] = useState('');
   const [budget, setBudget] = useState('');
   const [deadline, setDeadline] = useState('');
+  const [phone, setPhone] = useState('');
+
+  // phoneFromDB: fetched directly from users collection — empty = no phone on file
+  const [phoneFromDB, setPhoneFromDB] = useState('');
+  const phoneRequired = !phoneFromDB.trim();
+
+  // Fetch phone directly from Firestore users/{currentUserId} on mount
+  useEffect(() => {
+    if (!currentUserId) return;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'users', currentUserId));
+        if (snap.exists()) {
+          const saved = (snap.data().phone || '').trim();
+          setPhoneFromDB(saved);
+          if (saved) setPhone(saved);
+        }
+      } catch (err) {
+        console.error('[RequestPage] Failed to fetch user phone:', err);
+      }
+    })();
+  }, [currentUserId]);
 
   // Validation
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -498,12 +531,13 @@ export function RequestPage() {
     const f = {
       title, category, description, budget, deadline,
       artistPriceMin: artist?.priceRange?.min ?? 0,
+      phone, phoneRequired,
       ...patch,
     };
     const e = validate(f);
     setErrors(e);
     return e;
-  }, [title, category, description, budget, deadline, artist]);
+  }, [title, category, description, budget, deadline, artist, phone, phoneRequired]);
 
   const touch = (field: string) => setTouched(p => ({ ...p, [field]: true }));
 
@@ -514,6 +548,7 @@ export function RequestPage() {
     description.trim().length >= 20,
     Number(budget) >= 100,
     !!deadline && deadline > todayStr(),
+    !phoneRequired || /^[6-9]\d{9}$/.test(phone.replace(/\D/g, '')),
   ].filter(Boolean).length;
 
   /* ── Process dropped / selected files ── */
@@ -561,7 +596,7 @@ export function RequestPage() {
   /* ── Submit ── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setTouched({ title: true, category: true, description: true, budget: true, deadline: true });
+    setTouched({ title: true, category: true, description: true, budget: true, deadline: true, phone: true });
     const errs = runValidate();
     if (Object.keys(errs).length > 0) {
       setShowBanner(true);
@@ -571,9 +606,25 @@ export function RequestPage() {
     setSubmitting(true);
     setSubmitError('');
     try {
+      const formattedPhone = phone.replace(/\D/g, '').replace(/(\d{5})(\d{5})/, '+91 $1 $2');
+
+      // If user had no phone on file (Google sign-in), save it to their user profile now
+      if (phoneRequired && currentUserId) {
+        try {
+          await updateDoc(doc(db, 'users', currentUserId), {
+            phone: formattedPhone,
+            updatedAt: new Date().toISOString(),
+          });
+        } catch (err) {
+          console.error('[RequestPage] Failed to save phone to user profile:', err);
+          // Non-blocking — still proceed with order creation
+        }
+      }
+
       const orderId = await createOrder({
         customerId: currentUserId,
         customerName: currentUserName,
+        customerPhone: formattedPhone,  // stored in order — NOT shown to artist
         artistId: artist!.id,
         artistName: artist!.name,
         title: title.trim(),
@@ -970,7 +1021,74 @@ export function RequestPage() {
                 </div>
               </div>
 
-              {/* ── Card 3: Budget & Deadline ── */}
+              {/* ── Card 3: Contact Phone ── */}
+              <div className="rq-card" style={{ marginBottom: 14 }}>
+                <div className="rq-card-hd"><Phone size={11} /> Contact Details</div>
+                <div className="rq-field" style={{ marginBottom: 0 }}>
+                  <label className="rq-label">
+                    <Phone size={13} /> Your Mobile Number
+                    <span style={{ color: '#ef4444', marginLeft: 2 }}>*</span>
+                  </label>
+                  {phoneFromDB && !phoneRequired ? (
+                    /* Phone auto-populated from profile — read-only */
+                    <div>
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input
+                          className="rq-input"
+                          type="tel"
+                          value={phone}
+                          readOnly
+                          disabled
+                          style={{ cursor: 'not-allowed', opacity: 0.75, paddingRight: 40 }}
+                        />
+                        <CheckCircle2 size={15} style={{ position: 'absolute', right: 12, color: '#22c55e', pointerEvents: 'none' }} />
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <CheckCircle2 size={11} style={{ color: '#22c55e', flexShrink: 0 }} />
+                        <span>Auto-filled from your profile.&nbsp;</span>
+                        <button
+                          type="button"
+                          onClick={() => navigate('/profile')}
+                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#d97706', fontWeight: 700, fontSize: '0.68rem', textDecoration: 'underline', fontFamily: 'inherit' }}
+                        >
+                          Edit in Profile →
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Phone not on file — required input */
+                    <div>
+                      <div style={{ background: 'linear-gradient(135deg,#fffbeb,#fef3c7)', border: '1.5px solid #fde68a', borderRadius: 12, padding: '8px 12px', marginBottom: 8, fontSize: '0.75rem', color: '#92400e', display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                        <span style={{ flexShrink: 0 }}>📱</span>
+                        <span>We need your mobile number so the artist can coordinate with you about your order. This is <strong>never</strong> shared with anyone else.</span>
+                      </div>
+                      <input
+                        className={`rq-input${T.phone && E.phone ? ' err' : ''}`}
+                        type="tel"
+                        value={phone}
+                        onChange={ev => {
+                          const digits = ev.target.value.replace(/\D/g, '').slice(0, 10);
+                          setPhone(digits);
+                          runValidate({ phone: digits });
+                        }}
+                        onBlur={() => touch('phone')}
+                        maxLength={10}
+                        placeholder="10-digit mobile number (e.g. 9876543210)"
+                      />
+                      {T.phone && E.phone && (
+                        <div className="rq-err-msg"><AlertCircle size={12} />{E.phone}</div>
+                      )}
+                      {!T.phone || !E.phone ? (
+                        <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: 4 }}>
+                          Indian mobile number starting with 6, 7, 8, or 9
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Card 4: Budget & Deadline ── */}
               <div className="rq-card" style={{ marginBottom: 14 }}>
                 <div className="rq-card-hd"><IndianRupee size={11} /> Budget & Timeline</div>
                 <div className="rq-two">

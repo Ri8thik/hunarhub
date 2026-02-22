@@ -170,6 +170,18 @@ const styles = `
     display: inline-block; border: 1px solid #f1f5f9;
   }
   .dark .ep-count-text { background: #0f172a; border-color: #1e293b; }
+
+  /* shared artist name / rating dark helpers */
+  .hp-card-name {
+    font-size: 0.95rem; font-weight: 800; color: #1e293b;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .dark .hp-card-name { color: #f1f5f9; }
+  .hp-card-rating {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 0.8rem; font-weight: 700; color: #1e293b;
+  }
+  .dark .hp-card-rating { color: #f1f5f9; }
 `
 
 export function ExplorePage() {
@@ -322,7 +334,7 @@ export function ExplorePage() {
                   <Avatar name={artist.name} size="lg" />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                      <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }} className="dark:text-gray-100">
+                      <span style={{ fontWeight: 800, fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }} className="hp-card-name">
                         {artist.name}
                       </span>
                       {artist.verified && <BadgeCheck size={15} color="#d97706" />}
@@ -346,7 +358,7 @@ export function ExplorePage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexShrink: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                     <Star size={12} style={{ fill: '#f59e0b', color: '#f59e0b' }} />
-                    <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#1e293b' }} className="dark:text-gray-100">{artist.rating}</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 800 }} className="hp-card-rating">{artist.rating}</span>
                     <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>({artist.reviewCount})</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>

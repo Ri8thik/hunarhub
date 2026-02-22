@@ -4,12 +4,12 @@ import { useApp } from '@/context/AppContext'
 import { getArtistById, getArtistReviews } from '@/services/firestoreService'
 import { validateImage, imageToBase64 } from '@/services/imageService'
 import { getIndianStates, getCitiesByState } from '@/services/locationService'
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/config/firebase'
 import {
   ArrowLeft, MapPin, Star, Clock, CheckCircle, Edit, Loader2, X,
   TrendingUp, Palette, Award, Image, Save, Search, Upload,
-  CheckCircle2, AlertCircle, Plus, Trash2, User, BadgeCheck
+  CheckCircle2, AlertCircle, Plus, Trash2, User, BadgeCheck, Phone
 } from 'lucide-react'
 
 /* ─────────────────────── TYPES ─────────────────────── */
@@ -420,6 +420,7 @@ export default function MyArtistProfilePage() {
 
   /* Basic */
   const [eName, setEName]   = useState('')
+  const [ePhone, setEPhone] = useState('')
   const [eBio,  setEBio]    = useState('')
   const [eState, setEState] = useState('')
   const [eCity,  setECity]  = useState('')
@@ -472,6 +473,12 @@ export default function MyArtistProfilePage() {
     setPortErrors([])
     setSaveSuccess(false)
     setTab(startTab || 'basic')
+
+    // Load phone from users collection
+    try {
+      const userSnap = await getDoc(doc(db, 'users', currentUserId))
+      if (userSnap.exists()) setEPhone(userSnap.data().phone || '')
+    } catch (e) { console.error('Error loading phone:', e) }
 
     // Parse stored location  "City, State"
     if (artist.location) {
@@ -548,6 +555,13 @@ export default function MyArtistProfilePage() {
         updatedAt:  serverTimestamp(),
       }
       await updateDoc(doc(db, 'artists', currentUserId), updates)
+      // Also save phone to users collection
+      await updateDoc(doc(db, 'users', currentUserId), {
+        phone: ePhone.trim(),
+        name: eName.trim(),
+        location,
+        updatedAt: serverTimestamp(),
+      })
       // Instant local update — no need to refetch
       setArtist(prev => prev ? { ...prev, ...updates } : prev)
       setSaveSuccess(true)
@@ -655,6 +669,26 @@ export default function MyArtistProfilePage() {
                             <User size={14} style={{ color: '#d97706', flexShrink: 0 }} />
                             <input className="em-input" value={eName} onChange={e => setEName(e.target.value.replace(/[0-9]/g, ''))} placeholder="Your artist name" maxLength={60} />
                           </div>
+                        </div>
+                        <div className="em-field">
+                          <label className="em-lbl">Mobile Number <span style={{ color: '#94a3b8', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(used for order coordination)</span></label>
+                          <div className="em-row">
+                            <Phone size={14} style={{ color: '#16a34a', flexShrink: 0 }} />
+                            <input
+                              className="em-input"
+                              type="tel"
+                              value={ePhone}
+                              onChange={e => {
+                                const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                setEPhone(digits);
+                              }}
+                              placeholder="10-digit mobile number"
+                              maxLength={10}
+                            />
+                          </div>
+                          {ePhone && !/^[6-9]\d{9}$/.test(ePhone) && (
+                            <div style={{ fontSize: '0.68rem', color: '#f59e0b', marginTop: 4 }}>Enter a valid 10-digit number starting with 6-9</div>
+                          )}
                         </div>
                       </div>
 

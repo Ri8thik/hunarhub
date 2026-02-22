@@ -260,11 +260,22 @@ const styles = `
     opacity: 0.07; color: #000;
     pointer-events: none;
   }
+  .dark .hp-step-num { color: #fff; opacity: 0.12; }
   .hp-step-emoji { font-size: 1.75rem; margin-bottom: 8px; display: block; }
   .hp-step-title { font-size: 0.9rem; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
   .dark .hp-step-title { color: #f1f5f9; }
   .hp-step-desc { font-size: 0.8rem; color: #64748b; line-height: 1.5; }
   .dark .hp-step-desc { color: #94a3b8; }
+
+  /* ── How It Works dark variants ── */
+  .hp-step-blue   { background: linear-gradient(135deg,#eff6ff,#dbeafe); border-color: #bfdbfe; }
+  .dark .hp-step-blue   { background: rgba(30,58,138,0.2) !important; border-color: #1e3a5f !important; }
+  .hp-step-amber  { background: linear-gradient(135deg,#fffbeb,#fef3c7); border-color: #fde68a; }
+  .dark .hp-step-amber  { background: rgba(120,53,15,0.25) !important; border-color: #78350f !important; }
+  .hp-step-green  { background: linear-gradient(135deg,#f0fdf4,#dcfce7); border-color: #bbf7d0; }
+  .dark .hp-step-green  { background: rgba(20,83,45,0.25) !important; border-color: #166534 !important; }
+  .hp-step-purple { background: linear-gradient(135deg,#fdf4ff,#fae8ff); border-color: #e9d5ff; }
+  .dark .hp-step-purple { background: rgba(88,28,135,0.25) !important; border-color: #581c87 !important; }
 
   /* ── Artist Dashboard ── */
   .hp-dash-hero {
@@ -479,12 +490,12 @@ export function HomePage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Avatar name={artist.name} size="md" />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} className="dark:text-gray-100">
+                      <div className="hp-card-name" style={{ fontSize: '0.875rem', fontWeight: 700 }}>
                         {artist.name}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
                         <Star size={11} style={{ fill: '#f59e0b', color: '#f59e0b' }} />
-                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1e293b' }} className="dark:text-gray-100">{artist.rating}</span>
+                        <span className="hp-card-rating" style={{ fontSize: '0.78rem' }}>{artist.rating}</span>
                       </div>
                     </div>
                     <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#d97706' }} className="dark:text-amber-400">
@@ -511,15 +522,12 @@ export function HomePage() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
             {[
-              { step: '1', title: 'Find Artist', desc: 'Browse verified artists by category & location', emoji: '🔍', bg: 'linear-gradient(135deg,#eff6ff,#dbeafe)', border: '#bfdbfe', darkBg: 'rgba(30,58,138,0.15)', darkBorder: '#1e3a5f' },
-              { step: '2', title: 'Submit Request', desc: 'Describe your custom art vision in detail', emoji: '📝', bg: 'linear-gradient(135deg,#fffbeb,#fef3c7)', border: '#fde68a', darkBg: 'rgba(120,53,15,0.2)', darkBorder: '#78350f' },
-              { step: '3', title: 'Track Progress', desc: 'Chat with your artist & monitor status', emoji: '💬', bg: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', border: '#bbf7d0', darkBg: 'rgba(20,83,45,0.2)', darkBorder: '#166534' },
-              { step: '4', title: 'Receive Art', desc: 'Get your custom masterpiece delivered!', emoji: '🎨', bg: 'linear-gradient(135deg,#fdf4ff,#fae8ff)', border: '#e9d5ff', darkBg: 'rgba(88,28,135,0.2)', darkBorder: '#581c87' },
+              { step: '1', title: 'Find Artist', desc: 'Browse verified artists by category & location', emoji: '🔍', colorClass: 'hp-step-blue' },
+              { step: '2', title: 'Submit Request', desc: 'Describe your custom art vision in detail', emoji: '📝', colorClass: 'hp-step-amber' },
+              { step: '3', title: 'Track Progress', desc: 'Chat with your artist & monitor status', emoji: '💬', colorClass: 'hp-step-green' },
+              { step: '4', title: 'Receive Art', desc: 'Get your custom masterpiece delivered!', emoji: '🎨', colorClass: 'hp-step-purple' },
             ].map((item, i) => (
-              <div key={item.step} className={cn('hp-step-card', 'dark')} style={{
-                background: item.bg, borderColor: item.border,
-                animationDelay: `${i * 0.08}s`
-              }}>
+              <div key={item.step} className={cn('hp-step-card', item.colorClass)} style={{ animationDelay: `${i * 0.08}s` }}>
                 <div className="hp-step-num">{item.step}</div>
                 <span className="hp-step-emoji">{item.emoji}</span>
                 <div className="hp-step-title">Step {item.step}: {item.title}</div>

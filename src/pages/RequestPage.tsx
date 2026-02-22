@@ -5,7 +5,7 @@ import {
   Loader2, MapPin, Clock, AlertCircle, Sparkles,
   Palette, Star, Zap, X, Image, CheckCircle2
 } from 'lucide-react';
-import { getArtistById, createOrder } from '@/services/firestoreService';
+import { getArtistById, createOrder, createNotification } from '@/services/firestoreService';
 import { validateImage, imageToBase64 } from '@/services/imageService';
 import { useApp } from '@/context/AppContext';
 import { Avatar } from '@/components/Avatar';
@@ -571,7 +571,7 @@ export function RequestPage() {
     setSubmitting(true);
     setSubmitError('');
     try {
-      await createOrder({
+      const orderId = await createOrder({
         customerId: currentUserId,
         customerName: currentUserName,
         artistId: artist!.id,
@@ -583,6 +583,18 @@ export function RequestPage() {
         deadline,
         category,
       });
+
+      // Notify the artist about the new order
+      await createNotification({
+        userId: artist!.id,   // artist doc ID === artist's userId
+        type: 'order',
+        title: '🎨 New Order Request!',
+        body: `${currentUserName} placed a new order: "${title.trim()}" for ₹${Number(budget).toLocaleString('en-IN')}`,
+        relatedId: orderId,
+        relatedType: 'order',
+        forAdmin: true,
+      });
+
       setSubmitted(true);
     } catch (err: any) {
       console.error('[RequestPage] Order creation failed:', err);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useApp } from '@/context/AppContext'
-import { getArtistById, getArtistReviews, addReview, updateArtistRating } from '@/services/firestoreService'
+import { getArtistById, getArtistReviews, addReview, updateArtistRating, createNotification } from '@/services/firestoreService'
 import { ArrowLeft, Star, MapPin, Clock, CheckCircle, MessageCircle, Loader2, X, Send, Briefcase, Award, Image } from 'lucide-react'
 
 interface Review {
@@ -535,6 +535,18 @@ export default function ArtistProfilePage() {
         createdAt: new Date().toISOString().split('T')[0]
       }
       await addReview(reviewData)
+
+      // Notify the artist about the new review
+      await createNotification({
+        userId: artist.id,
+        type: 'review',
+        title: '⭐ New Review Received!',
+        body: `${currentUserName || 'A customer'} gave you ${reviewRating} star${reviewRating > 1 ? 's' : ''}: "${reviewComment.trim().slice(0, 80)}${reviewComment.trim().length > 80 ? '…' : ''}"`,
+        relatedId: artist.id,
+        relatedType: 'review',
+        forAdmin: true,
+      });
+
       const newReview = { id: 'new-' + Date.now(), ...reviewData }
       const updatedReviews = [newReview, ...reviews]
       const { newRating, newCount } = await updateArtistRating(artist.id, updatedReviews)

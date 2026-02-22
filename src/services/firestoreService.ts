@@ -16,6 +16,7 @@ import {
   limit,
   onSnapshot,
   serverTimestamp,
+  writeBatch,
   type DocumentData,
   type Unsubscribe,
 } from 'firebase/firestore';
@@ -490,15 +491,136 @@ export function subscribeToMessages(
 // NOTIFICATIONS — FROM FIREBASE ONLY
 // ============================================================
 
-export async function getNotifications(userId: string) {
+export type NotificationType = 'order' | 'review' | 'status_update' | 'message' | 'system';
+
+export interface NotificationData {
+  id?: string;
+  userId: string;         // recipient
+  type: NotificationType;
+  title: string;
+  body: string;
+  read: boolean;
+  relatedId?: string;     // orderId / artistId — for deep linking
+  relatedType?: 'order' | 'review' | 'chat';
+  forAdmin: boolean;      // mirrors to admin panel when true
+  createdAt?: unknown;    // Firestore Timestamp
+}
+
+/** Write a new notification document */
+export async function createNotification(data: Omit<NotificationData, 'id' | 'read' | 'createdAt'>): Promise<void> {
+  if (!isFirebaseConfigured()) return;
+  try {
+    await addDoc(collection(db, 'notifications'), {
+      ...data,
+      read: false,
+      createdAt: serverTimestamp(),
+    });
+    console.log('[Firestore] ✅ Notification created for user:', data.userId, '|', data.title);
+  } catch (error) {
+    // Notifications are best-effort — don't throw
+    console.error('[Firestore] Error creating notification:', error);
+  }
+}
+
+/** One-time fetch — kept for backward compat */
+export async function getNotifications(userId: string): Promise<NotificationData[]> {
   if (!isFirebaseConfigured()) return [];
   try {
-    const q = query(collection(db, 'notifications'), where('userId', '==', userId), orderBy('createdAt', 'desc'), limit(20));
+    const q = query(
+      collection(db, 'notifications'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc'),
+      limit(30)
+    );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as NotificationData));
   } catch (error) {
     console.error('[Firestore] Error fetching notifications:', error);
     return [];
+  }
+}
+
+/** Real-time listener for a user's notifications */
+export function subscribeToNotifications(
+  userId: string,
+  callback: (notifications: NotificationData[]) => void
+): Unsubscribe {
+  if (!isFirebaseConfigured()) { callback([]); return () => {}; }
+  try {
+    const q = query(
+      collection(db, 'notifications'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc'),
+      limit(30)
+    );
+    return onSnapshot(q, (snapshot) => {
+      const notifications = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as NotificationData));
+      callback(notifications);
+    }, (error) => {
+      console.error('[Firestore] Error in notifications listener:', error);
+      callback([]);
+    });
+  } catch (error) {
+    console.error('[Firestore] subscribeToNotifications setup error:', error);
+    callback([]);
+    return () => {};
+  }
+}
+
+/** Real-time listener for admin — all notifications where forAdmin == true */
+export function subscribeToAdminNotifications(
+  callback: (notifications: NotificationData[]) => void
+): Unsubscribe {
+  if (!isFirebaseConfigured()) { callback([]); return () => {}; }
+  try {
+    const q = query(
+      collection(db, 'notifications'),
+      where('forAdmin', '==', true),
+      orderBy('createdAt', 'desc'),
+      limit(50)
+    );
+    return onSnapshot(q, (snapshot) => {
+      const notifications = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as NotificationData));
+      callback(notifications);
+    }, (error) => {
+      console.error('[Firestore] Error in admin notifications listener:', error);
+      callback([]);
+    });
+  } catch (error) {
+    console.error('[Firestore] subscribeToAdminNotifications setup error:', error);
+    callback([]);
+    return () => {};
+  }
+}
+
+/** Mark a single notification as read */
+export async function markNotificationRead(notifId: string): Promise<void> {
+  if (!isFirebaseConfigured()) return;
+  try {
+    await updateDoc(doc(db, 'notifications', notifId), { read: true });
+  } catch (error) {
+    console.error('[Firestore] Error marking notification read:', error);
+  }
+}
+
+/** Batch-mark all unread notifications for a user as read */
+export async function markAllNotificationsRead(userId: string): Promise<void> {
+  if (!isFirebaseConfigured()) return;
+  try {
+    const q = query(
+      collection(db, 'notifications'),
+      where('userId', '==', userId),
+      where('read', '==', false)
+    );
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return;
+
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(d => batch.update(d.ref, { read: true }));
+    await batch.commit();
+    console.log('[Firestore] ✅ Marked', snapshot.size, 'notifications as read for:', userId);
+  } catch (error) {
+    console.error('[Firestore] Error marking all notifications read:', error);
   }
 }
 

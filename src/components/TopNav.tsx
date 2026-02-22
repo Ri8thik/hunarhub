@@ -139,7 +139,7 @@ const styles = `
 
 export function TopNav() {
   const navigate = useNavigate();
-  const { userRole, currentUserName, switchRole, darkMode, toggleDarkMode, isArtist, artistChecked } = useApp();
+  const { userRole, currentUserName, switchRole, darkMode, toggleDarkMode, isArtist, artistChecked, unreadCount } = useApp();
 
   return (
     <>
@@ -184,7 +184,9 @@ export function TopNav() {
         {/* Notifications */}
         <button className="tn-icon-btn" onClick={() => navigate('/notifications')}>
           <Bell size={16} color={darkMode ? '#94a3b8' : '#64748b'} />
-          <span className="tn-notif-dot">3</span>
+          {unreadCount > 0 && (
+            <span className="tn-notif-dot">{unreadCount > 9 ? '9+' : unreadCount}</span>
+          )}
         </button>
 
         {/* Avatar */}

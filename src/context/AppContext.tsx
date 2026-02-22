@@ -25,6 +25,9 @@ import {
   createOrder as firestoreCreateOrder,
   updateOrderStatus as firestoreUpdateOrderStatus,
   checkIsArtist,
+  subscribeToNotifications,
+  markAllNotificationsRead,
+  createNotification,
   type CreateOrderData,
 } from '@/services/firestoreService';
 
@@ -47,6 +50,7 @@ interface AppState {
   categoriesLoading: boolean;
   ordersLoading: boolean;
   darkMode: boolean;
+  unreadCount: number;
   toggleDarkMode: () => void;
   login: (role: UserRole, userId?: string, userName?: string) => void;
   logout: () => void;
@@ -56,6 +60,7 @@ interface AppState {
   addOrder: (order: Order) => void;
   refreshOrders: () => Promise<void>;
   refreshArtists: () => Promise<void>;
+  markAllRead: () => Promise<void>;
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -102,6 +107,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [artistsLoading, setArtistsLoading] = useState(true);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [ordersLoading, setOrdersLoading] = useState(false);
+
+  // ---- Notification unread count ----
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // ---- Dark Mode ----
   const [darkMode, setDarkMode] = useState<boolean>(() => {
@@ -310,6 +318,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => unsubOrders();
   }, [currentUserId, userRole, isLoggedIn]);
 
+  // ---- Real-time notification unread count ----
+  useEffect(() => {
+    if (!currentUserId || !isLoggedIn) {
+      setUnreadCount(0);
+      return;
+    }
+    const unsub = subscribeToNotifications(currentUserId, (notifications) => {
+      const count = notifications.filter(n => !n.read).length;
+      setUnreadCount(count);
+    });
+    return () => unsub();
+  }, [currentUserId, isLoggedIn]);
+
 
   useEffect(() => {
     function handleSessionExpired() {
@@ -396,7 +417,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ---- Order Management ----
   const updateOrderStatusFn = useCallback(async (orderId: string, status: OrderStatus) => {
-    // 1. Optimistically update the order in local state
+    // Find order details before updating for notification content
+    const order = orders.find(o => o.id === orderId);
+
     setOrders(prev => prev.map(o =>
       o.id === orderId ? { ...o, status, updatedAt: new Date().toISOString().split('T')[0] } : o
     ));
@@ -416,6 +439,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       // 3. Persist to Firestore (also updates artist doc atomically)
       await firestoreUpdateOrderStatus(orderId, status);
+
+      // Notify the customer about the status change
+      if (order) {
+        const statusLabels: Record<string, string> = {
+          accepted:    '✅ Order Accepted',
+          in_progress: '🎨 Work Started',
+          delivered:   '📦 Order Delivered',
+          completed:   '🎉 Order Completed',
+          rejected:    '❌ Order Rejected',
+        };
+        const statusBodies: Record<string, string> = {
+          accepted:    `${order.artistName} accepted your order "${order.title}". Work will begin soon!`,
+          in_progress: `${order.artistName} has started working on "${order.title}".`,
+          delivered:   `${order.artistName} has delivered "${order.title}". Please review and confirm.`,
+          completed:   `Your order "${order.title}" is complete. Thank you for using HunarHub!`,
+          rejected:    `${order.artistName} was unable to accept "${order.title}" at this time.`,
+        };
+        if (statusLabels[status]) {
+          await createNotification({
+            userId: order.customerId,
+            type: 'status_update',
+            title: statusLabels[status],
+            body: statusBodies[status] || `Your order status changed to ${status}.`,
+            relatedId: orderId,
+            relatedType: 'order',
+            forAdmin: true,
+          });
+        }
+      }
     } catch (error) {
       console.error('[AppContext] Error updating order status in Firestore:', error);
     }
@@ -454,16 +506,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Artists are kept in sync via real-time onSnapshot listener — no manual refresh needed
   }, []);
 
+  const markAllRead = useCallback(async () => {
+    if (!currentUserId) return;
+    await markAllNotificationsRead(currentUserId);
+  }, [currentUserId]);
+
   return (
     <AppContext.Provider value={{
       isLoggedIn, isLoading, userRole, isArtist, artistChecked,
       currentUserId, currentUserName, currentUserEmail,
       sessionData, artists, categories, orders,
       artistsLoading, categoriesLoading, ordersLoading,
-      darkMode, toggleDarkMode,
+      darkMode, unreadCount,
+      toggleDarkMode,
       login, logout, switchRole, becomeArtist,
       updateOrderStatus: updateOrderStatusFn, addOrder,
-      refreshOrders, refreshArtists,
+      refreshOrders, refreshArtists, markAllRead,
     }}>
       {children}
     </AppContext.Provider>

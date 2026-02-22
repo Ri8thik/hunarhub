@@ -1,24 +1,43 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShoppingBag, MessageSquare, Star, CreditCard, Loader2, Bell } from 'lucide-react';
-import { getNotifications } from '@/services/firestoreService';
+import { ArrowLeft, ShoppingBag, MessageSquare, Star, CreditCard, Bell, Settings2, Loader2 } from 'lucide-react';
+import {
+  subscribeToNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  type NotificationData,
+} from '@/services/firestoreService';
 import { useApp } from '@/context/AppContext';
 
-interface NotificationItem {
-  id: string;
-  type: 'order' | 'message' | 'review' | 'payment';
-  title: string;
-  body: string;
-  timestamp: string;
-  read: boolean;
-}
-
 const typeConfig = {
-  order:   { icon: ShoppingBag, bg: '#dbeafe', color: '#1d4ed8', darkBg: 'rgba(30,64,175,0.2)', darkColor: '#93c5fd', emoji: '📦' },
-  message: { icon: MessageSquare, bg: '#d1fae5', color: '#065f46', darkBg: 'rgba(20,83,45,0.2)', darkColor: '#6ee7b7', emoji: '💬' },
-  review:  { icon: Star, bg: '#fef3c7', color: '#b45309', darkBg: 'rgba(120,53,15,0.2)', darkColor: '#fcd34d', emoji: '⭐' },
-  payment: { icon: CreditCard, bg: '#f3e8ff', color: '#6b21a8', darkBg: 'rgba(91,33,182,0.2)', darkColor: '#c4b5fd', emoji: '💳' },
+  order:         { icon: ShoppingBag, bg: '#dbeafe', color: '#1d4ed8', darkBg: 'rgba(30,64,175,0.2)', darkColor: '#93c5fd', emoji: '📦' },
+  message:       { icon: MessageSquare, bg: '#d1fae5', color: '#065f46', darkBg: 'rgba(20,83,45,0.2)', darkColor: '#6ee7b7', emoji: '💬' },
+  review:        { icon: Star, bg: '#fef3c7', color: '#b45309', darkBg: 'rgba(120,53,15,0.2)', darkColor: '#fcd34d', emoji: '⭐' },
+  payment:       { icon: CreditCard, bg: '#f3e8ff', color: '#6b21a8', darkBg: 'rgba(91,33,182,0.2)', darkColor: '#c4b5fd', emoji: '💳' },
+  status_update: { icon: ShoppingBag, bg: '#dcfce7', color: '#166534', darkBg: 'rgba(22,101,52,0.2)', darkColor: '#86efac', emoji: '✅' },
+  system:        { icon: Bell, bg: '#f1f5f9', color: '#475569', darkBg: 'rgba(51,65,85,0.2)', darkColor: '#94a3b8', emoji: '🔔' },
 };
+
+function formatTime(createdAt: unknown): string {
+  if (!createdAt) return '';
+  try {
+    // Firestore Timestamp
+    const ts = createdAt as { seconds?: number; toDate?: () => Date };
+    const date = ts.toDate ? ts.toDate() : (typeof ts.seconds === 'number' ? new Date(ts.seconds * 1000) : new Date(createdAt as string));
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  } catch {
+    return '';
+  }
+}
 
 const styles = `
   @keyframes fadeInUp {
@@ -28,6 +47,10 @@ const styles = `
   @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
   @keyframes pulse-dot {
     0%,100%{opacity:1; transform:scale(1)} 50%{opacity:0.6; transform:scale(1.3)}
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
   }
 
   .np-page { padding: 1rem; background: #f8fafc; min-height: 100%; }
@@ -51,15 +74,18 @@ const styles = `
   }
   .dark .np-title { color: #f1f5f9; }
 
+  .np-actions { display: flex; align-items: center; gap: 8px; }
+
   .np-mark-all {
     font-size: 0.78rem; font-weight: 700; color: #d97706;
     background: none; border: none; cursor: pointer;
     padding: 6px 12px; border-radius: 8px;
     background: #fffbeb; border: 1px solid #fde68a;
-    transition: all 0.2s;
+    transition: all 0.2s; white-space: nowrap;
   }
   .dark .np-mark-all { background: #1c0a00; border-color: #78350f; color: #fbbf24; }
   .np-mark-all:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(217,119,6,0.2); }
+  .np-mark-all:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
   /* ── Notification card ── */
   .np-notif {
@@ -67,7 +93,7 @@ const styles = `
     padding: 14px 16px;
     border-bottom: 1px solid #f1f5f9;
     cursor: pointer; transition: background 0.2s;
-    animation: fadeInUp 0.35s ease both;
+    animation: slideIn 0.3s ease both;
     position: relative;
   }
   .dark .np-notif { border-color: #1e293b; }
@@ -146,36 +172,43 @@ const styles = `
 export function NotificationsPage() {
   const navigate = useNavigate();
   const { currentUserId } = useApp();
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [markingAll, setMarkingAll] = useState(false);
 
   useEffect(() => {
-    async function fetchNotifications() {
-      setLoading(true);
-      try {
-        const data = await getNotifications(currentUserId);
-        const mapped: NotificationItem[] = data.map((d) => {
-          const raw = d as unknown as Record<string, unknown>;
-          return {
-            id: (raw.id as string) || '',
-            type: (raw.type as NotificationItem['type']) || 'order',
-            title: (raw.title as string) || '',
-            body: (raw.body as string) || (raw.message as string) || '',
-            timestamp: (raw.timestamp as string) || (raw.createdAt as string) || '',
-            read: (raw.read as boolean) || false,
-          };
-        });
-        setNotifications(mapped);
-      } catch (error) {
-        console.error('Error fetching notifications:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchNotifications();
+    if (!currentUserId) { setLoading(false); return; }
+
+    setLoading(true);
+    const unsub = subscribeToNotifications(currentUserId, (data) => {
+      setNotifications(data);
+      setLoading(false);
+    });
+
+    return () => unsub();
   }, [currentUserId]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  const handleNotifClick = useCallback(async (notif: NotificationData) => {
+    // Mark as read
+    if (!notif.read && notif.id) {
+      await markNotificationRead(notif.id);
+    }
+    // Deep link navigation
+    if (notif.relatedType === 'order' && notif.relatedId) {
+      navigate(`/order/${notif.relatedId}`);
+    } else if (notif.relatedType === 'review' && notif.relatedId) {
+      navigate(`/artist/${notif.relatedId}`);
+    }
+  }, [navigate]);
+
+  const handleMarkAll = useCallback(async () => {
+    if (!currentUserId || markingAll || unreadCount === 0) return;
+    setMarkingAll(true);
+    await markAllNotificationsRead(currentUserId);
+    setMarkingAll(false);
+  }, [currentUserId, markingAll, unreadCount]);
 
   return (
     <>
@@ -196,9 +229,17 @@ export function NotificationsPage() {
               }}>{unreadCount}</span>
             )}
           </h1>
-          {notifications.length > 0 && (
-            <button className="np-mark-all">Mark all read</button>
-          )}
+          <div className="np-actions">
+            {unreadCount > 0 && (
+              <button
+                className="np-mark-all"
+                onClick={handleMarkAll}
+                disabled={markingAll}
+              >
+                {markingAll ? 'Marking…' : 'Mark all read'}
+              </button>
+            )}
+          </div>
         </div>
 
         {loading ? (
@@ -213,19 +254,20 @@ export function NotificationsPage() {
               No notifications yet
             </h3>
             <p style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
-              Order updates, messages, and reviews will appear here.
+              Order updates, reviews, and more will appear here.
             </p>
           </div>
         ) : (
           <div className="np-container">
             {notifications.map((notif, i) => {
-              const typeKey = notif.type in typeConfig ? notif.type : 'order';
+              const typeKey = (notif.type in typeConfig ? notif.type : 'system') as keyof typeof typeConfig;
               const cfg = typeConfig[typeKey];
               return (
                 <div
                   key={notif.id}
                   className={`np-notif ${!notif.read ? 'unread' : ''}`}
                   style={{ animationDelay: `${i * 0.04}s` }}
+                  onClick={() => handleNotifClick(notif)}
                 >
                   <div className="np-icon-wrap" style={{ background: cfg.bg }}>
                     <span>{cfg.emoji}</span>
@@ -238,7 +280,7 @@ export function NotificationsPage() {
                       {!notif.read && <div className="np-unread-dot" />}
                     </div>
                     <p className="np-body">{notif.body}</p>
-                    <p className="np-time">{notif.timestamp}</p>
+                    <p className="np-time">{formatTime(notif.createdAt)}</p>
                   </div>
                 </div>
               );

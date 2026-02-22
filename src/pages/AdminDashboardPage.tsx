@@ -4,8 +4,9 @@ import { collection, getDocs, doc, deleteDoc, setDoc, updateDoc } from 'firebase
 import { db } from '@/config/firebase'
 import {
   Shield, LogOut, Users, Search, Plus, Edit, Trash2, X, Save,
-  Loader2, ChevronDown, ChevronUp, Eye, UserCheck, Palette
+  Loader2, ChevronDown, ChevronUp, Eye, UserCheck, Palette, Bell, CheckCheck
 } from 'lucide-react'
+import { subscribeToAdminNotifications, markNotificationRead, type NotificationData } from '@/services/firestoreService'
 
 interface UserData {
   id: string
@@ -43,6 +44,8 @@ export default function AdminDashboardPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [stats, setStats] = useState({ total: 0, customers: 0, artists: 0 })
+  const [adminNotifs, setAdminNotifs] = useState<NotificationData[]>([])
+  const [showNotifPanel, setShowNotifPanel] = useState(false)
 
   const [newUser, setNewUser] = useState({
     name: '', email: '', role: 'customer', phone: '', location: ''
@@ -53,6 +56,14 @@ export default function AdminDashboardPage() {
     if (!session) { navigate('/admin'); return }
     fetchAllUsers()
   }, [navigate])
+
+  // Real-time admin notifications
+  useEffect(() => {
+    const unsub = subscribeToAdminNotifications((notifs) => {
+      setAdminNotifs(notifs)
+    })
+    return () => unsub()
+  }, [])
 
   const fetchAllUsers = async () => {
     setLoading(true)
@@ -274,16 +285,121 @@ export default function AdminDashboardPage() {
               <p className="text-stone-400 dark:text-gray-400 text-xs">Welcome, {adminSession.name || 'Admin'}</p>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 bg-stone-100 dark:bg-gray-800 hover:bg-stone-200 dark:hover:bg-gray-700 border border-stone-200 dark:border-gray-700 rounded-lg text-sm font-medium text-stone-600 dark:text-gray-300 transition-all"
-          >
-            <LogOut className="w-4 h-4" /> Logout
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Notification Bell */}
+            <button
+              onClick={() => setShowNotifPanel(prev => !prev)}
+              style={{ position: 'relative' }}
+              className="flex items-center gap-2 px-4 py-2 bg-stone-100 dark:bg-gray-800 hover:bg-amber-50 dark:hover:bg-amber-900/20 border border-stone-200 dark:border-gray-700 rounded-lg text-sm font-medium text-stone-600 dark:text-gray-300 transition-all"
+            >
+              <Bell className="w-4 h-4" />
+              {adminNotifs.filter(n => !n.read).length > 0 && (
+                <span style={{
+                  position: 'absolute', top: -6, right: -6,
+                  minWidth: 18, height: 18,
+                  background: '#ef4444', color: '#fff',
+                  fontSize: 10, fontWeight: 800, borderRadius: 99,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '0 4px', border: '2px solid #fff',
+                }}>
+                  {adminNotifs.filter(n => !n.read).length > 9 ? '9+' : adminNotifs.filter(n => !n.read).length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 bg-stone-100 dark:bg-gray-800 hover:bg-stone-200 dark:hover:bg-gray-700 border border-stone-200 dark:border-gray-700 rounded-lg text-sm font-medium text-stone-600 dark:text-gray-300 transition-all"
+            >
+              <LogOut className="w-4 h-4" /> Logout
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="mx-auto p-6">
+
+        {/* ── Admin Notification Panel ── */}
+        {showNotifPanel && (
+          <div className="mb-6 bg-white dark:bg-gray-900 rounded-2xl border border-stone-200 dark:border-gray-700 shadow-lg overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100 dark:border-gray-700">
+              <div className="flex items-center gap-2">
+                <Bell className="w-4 h-4 text-amber-500" />
+                <h2 className="font-bold text-stone-800 dark:text-white text-sm">
+                  Platform Activity
+                  {adminNotifs.filter(n => !n.read).length > 0 && (
+                    <span className="ml-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      {adminNotifs.filter(n => !n.read).length} new
+                    </span>
+                  )}
+                </h2>
+              </div>
+              <div className="flex items-center gap-2">
+                {adminNotifs.filter(n => !n.read).length > 0 && (
+                  <button
+                    onClick={async () => {
+                      const unread = adminNotifs.filter(n => !n.read && n.id)
+                      await Promise.all(unread.map(n => markNotificationRead(n.id!)))
+                    }}
+                    className="flex items-center gap-1 text-xs text-amber-600 font-semibold hover:text-amber-700 transition-colors"
+                  >
+                    <CheckCheck className="w-3 h-3" /> Mark all read
+                  </button>
+                )}
+                <button onClick={() => setShowNotifPanel(false)} className="text-stone-400 hover:text-stone-600 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+              {adminNotifs.length === 0 ? (
+                <div className="text-center py-10">
+                  <span style={{ fontSize: '2rem', display: 'block', marginBottom: 8 }}>🔔</span>
+                  <p className="text-stone-400 text-sm">No platform activity yet.</p>
+                </div>
+              ) : (
+                adminNotifs.map((notif) => {
+                  const emojiMap: Record<string, string> = {
+                    order: '📦', review: '⭐', status_update: '✅', message: '💬', system: '🔔'
+                  }
+                  const emoji = emojiMap[notif.type] || '🔔'
+                  const ts = notif.createdAt as { seconds?: number; toDate?: () => Date } | undefined
+                  let timeStr = ''
+                  try {
+                    const date = ts?.toDate ? ts.toDate() : ts?.seconds ? new Date(ts.seconds * 1000) : null
+                    if (date) {
+                      const diff = Math.floor((Date.now() - date.getTime()) / 60000)
+                      timeStr = diff < 1 ? 'Just now' : diff < 60 ? `${diff}m ago` : diff < 1440 ? `${Math.floor(diff/60)}h ago` : `${Math.floor(diff/1440)}d ago`
+                    }
+                  } catch {}
+                  return (
+                    <div
+                      key={notif.id}
+                      onClick={async () => { if (!notif.read && notif.id) await markNotificationRead(notif.id) }}
+                      className="flex items-start gap-3 px-5 py-3 border-b border-stone-50 dark:border-gray-800 hover:bg-stone-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors"
+                      style={{ background: !notif.read ? 'rgba(217,119,6,0.03)' : undefined }}
+                    >
+                      <div style={{
+                        width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                        background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '1rem'
+                      }}>{emoji}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-stone-800 dark:text-white truncate">{notif.title}</p>
+                          {!notif.read && (
+                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#d97706', flexShrink: 0 }} />
+                          )}
+                        </div>
+                        <p className="text-xs text-stone-500 dark:text-gray-400 mt-0.5 line-clamp-2">{notif.body}</p>
+                        {timeStr && <p className="text-[10px] text-stone-400 mt-1">{timeStr}</p>}
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── Stats ── */}
         <div className="grid grid-cols-3 gap-4 mb-6">

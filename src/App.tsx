@@ -40,6 +40,19 @@ function AppLayout() {
 
   if (isLoading) return <LoadingScreen />
 
+  // Admin routes are always standalone — never wrapped in user layout
+  const pathname = window.location.pathname
+  const isAdminRoute = pathname.includes('/admin')
+  if (isAdminRoute) {
+    return (
+      <Routes>
+        <Route path="/admin" element={<AdminLoginPage />} />
+        <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+        <Route path="*" element={<AdminLoginPage />} />
+      </Routes>
+    )
+  }
+
   if (!isLoggedIn) {
     return (
       <Routes>

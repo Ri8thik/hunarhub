@@ -9,7 +9,7 @@
 // - Session cleanup on logout
 // ============================================================
 
-import { auth } from '@/config/firebase';
+import { API_BASE_URL, API_ENDPOINTS } from '@/config/api';
 import { type UserRole } from '@/types';
 
 // ---- Storage Keys ----
@@ -68,6 +68,11 @@ export function saveTokens(accessToken: string, refreshToken: string, expiryMs?:
 /** Get access token from session storage */
 export function getAccessToken(): string | null {
   return sessionStorage.getItem(KEYS.ACCESS_TOKEN);
+}
+
+/** Backward-compatible token getter used by API services */
+export function getUserToken(): string | null {
+  return getAccessToken();
 }
 
 /** Get refresh token */
@@ -133,6 +138,17 @@ export function updateUserRole(role: UserRole): void {
   }
 }
 
+/** Update selected user fields in session storage */
+export function updateSessionUserData(updates: Partial<SessionUserData>): void {
+  const userData = getUserData();
+  if (!userData) return;
+  const nextUserData: SessionUserData = {
+    ...userData,
+    ...updates,
+  };
+  saveUserData(nextUserData);
+}
+
 /** Get session ID */
 export function getSessionId(): string | null {
   return sessionStorage.getItem(KEYS.SESSION_ID);
@@ -157,7 +173,8 @@ export function isSessionValid(): boolean {
   
   if (!token || !userData) return false;
   if (isSessionTimedOut()) return false;
-  
+  if (isTokenExpired()) return false;
+
   return true;
 }
 
@@ -167,29 +184,40 @@ export function isSessionValid(): boolean {
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
-/** Refresh the Firebase ID token */
 export async function refreshAccessToken(): Promise<string | null> {
   try {
-    const user = auth.currentUser;
-    if (!user) {
-      console.warn('[SessionManager] No authenticated user for token refresh');
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+      console.warn('[SessionManager] No refresh token available for refresh');
       clearSession();
       return null;
     }
 
-    // Force refresh the Firebase ID token
-    const newToken = await user.getIdToken(true);
-    const tokenResult = await user.getIdTokenResult();
-    
-    // Calculate expiry from token
-    const expiryMs = new Date(tokenResult.expirationTime).getTime() - Date.now();
-    
-    // Save new tokens
-    saveTokens(newToken, user.refreshToken, expiryMs);
-    
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.AUTH.REFRESH}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error((payload as { message?: string })?.message || 'Token refresh failed');
+    }
+
+    const data = (payload as { data?: { accessToken?: string; refreshToken?: string; expiresIn?: number }; accessToken?: string; refreshToken?: string; expiresIn?: number }).data ?? payload;
+    const accessToken = data.accessToken;
+    const nextRefreshToken = data.refreshToken || refreshToken;
+    const expiryMs = (data.expiresIn ?? 60 * 60) * 1000;
+
+    if (!accessToken) {
+      throw new Error('Missing access token in refresh response');
+    }
+
+    saveTokens(accessToken, nextRefreshToken, expiryMs);
+
     console.log('[SessionManager] Token refreshed successfully. Expires in:', Math.round(expiryMs / 60000), 'minutes');
-    
-    return newToken;
+
+    return accessToken;
   } catch (error) {
     console.error('[SessionManager] Token refresh failed:', error);
     clearSession();
@@ -249,38 +277,27 @@ export async function initSession(
   loginMethod: 'email' | 'phone' | 'google'
 ): Promise<boolean> {
   try {
-    const user = auth.currentUser;
-    if (!user) {
-      console.error('[SessionManager] No user to initialize session');
+    const userData = getUserData();
+    const accessToken = getAccessToken();
+    const refreshToken = getRefreshToken();
+
+    if (!userData || !accessToken || !refreshToken) {
+      console.error('[SessionManager] No session data available to initialize');
       return false;
     }
 
-    // Get Firebase ID token (acts as our JWT)
-    const tokenResult = await user.getIdTokenResult();
-    const expiryMs = new Date(tokenResult.expirationTime).getTime() - Date.now();
-    
-    // Save tokens
-    saveTokens(tokenResult.token, user.refreshToken, expiryMs);
-    
-    // Save user data
-    const userData: SessionUserData = {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      phoneNumber: user.phoneNumber,
-      photoURL: user.photoURL,
+    const normalizedUserData: SessionUserData = {
+      ...userData,
       role,
       loginMethod,
-      loginTimestamp: Date.now(),
+      loginTimestamp: userData.loginTimestamp || Date.now(),
     };
-    saveUserData(userData);
-    
-    // Start auto-refresh timer
+    saveUserData(normalizedUserData);
+
     startTokenRefreshTimer();
-    
-    console.log('[SessionManager] Session initialized for:', user.email || user.phoneNumber);
-    console.log('[SessionManager] Token expires in:', Math.round(expiryMs / 60000), 'minutes');
-    
+
+    console.log('[SessionManager] Session initialized for:', normalizedUserData.email || normalizedUserData.phoneNumber);
+
     return true;
   } catch (error) {
     console.error('[SessionManager] Session initialization failed:', error);
@@ -290,16 +307,22 @@ export async function initSession(
 
 /** Restore session on app load (page refresh) */
 export async function restoreSession(): Promise<boolean> {
-  // Check if we have session data
-  if (!isSessionValid()) {
-    console.log('[SessionManager] No valid session found');
+  const userData = getUserData();
+  if (!userData) {
+    console.log('[SessionManager] No session user data found');
     clearSession();
     return false;
   }
-  
-  // If token is expired but we have refresh token, try refresh
-  if (isTokenExpired()) {
-    console.log('[SessionManager] Token expired, attempting refresh...');
+
+  if (isSessionTimedOut()) {
+    console.log('[SessionManager] Session timed out due to inactivity');
+    clearSession();
+    return false;
+  }
+
+  // Recover access token from refresh token when needed.
+  if (!getAccessToken() || isTokenExpired()) {
+    console.log('[SessionManager] Access token missing/expired, attempting refresh...');
     const newToken = await refreshAccessToken();
     if (!newToken) {
       console.log('[SessionManager] Could not restore session');

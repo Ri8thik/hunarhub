@@ -3,35 +3,76 @@ import { useNavigate } from 'react-router-dom'
 import { getIndianStates, getCitiesByState } from '@/services/locationService'
 import ImageUploader from '@/components/ImageUploader'
 import { useApp } from '@/context/AppContext'
-import { addArtist } from '@/services/firestoreService'
+import { createArtistProfile } from '@/services/apiDataService'
 import { ArrowLeft, Save, Loader2, CheckCircle } from 'lucide-react'
 
 // Fallback used only if Firestore categories haven't loaded yet
 const FALLBACK_SKILLS = [
-  'Sketch', 'Pencil Drawing', 'Charcoal Art', 'Portrait', 'Caricature',
-  'Oil Painting', 'Watercolor', 'Acrylic Painting', 'Digital Art', 'Vector Art',
-  'Calligraphy', 'Mandala Art', 'Rangoli Design', 'Mehndi Design', 'Wall Mural',
-  'Clay Sculpture', 'Wood Carving', 'Paper Craft', 'Handmade Jewelry', 'Embroidery',
-  'Painting', 'Home Decor', 'Craft', 'Sculpture',
+  // Drawing & Sketching
+  'Sketch', 'Pencil Drawing', 'Charcoal Art', 'Line Art', 'Digital Sketching',
+
+  // Portrait Art
+  'Portrait', 'Face Painting', 'Caricature', 'Cartoon Drawing',
+
+  // Painting
+  'Oil Painting', 'Watercolor', 'Acrylic Painting', 'Gouache Painting', 'Tempera Art',
+
+  // Digital Art
+  'Digital Art', 'Digital Painting', 'Photo Editing', 'Digital Illustration',
+
+  // Vector & Graphic Design
+  'Vector Art', 'Graphic Design', 'Logo Design', 'Poster Design', 'UI/UX Design',
+
+  // Lettering & Calligraphy
+  'Calligraphy', 'Hand Lettering', 'Typography', 'Script Writing',
+
+  // Indian Art Forms
+  'Mandala Art', 'Rangoli Design', 'Mehndi Design', 'Henna Art', 'Kolam Art',
+  'Warli Art', 'Madhubani Painting', 'Pichwai Art', 'Tanjore Painting',
+
+  // Murals & Street Art
+  'Wall Mural', 'Street Art', 'Graffiti Art', 'Mural Painting',
+
+  // Sculpture & 3D Art
+  'Clay Sculpture', 'Stone Carving', 'Wood Carving', '3D Modeling', 'Statue Making',
+
+  // Crafts
+  'Paper Craft', 'Paper Mache', 'Origami', 'Quilling', 'Decoupage',
+  'Jewelry Design', 'Handmade Jewelry', 'Jewelry Making', 'Bead Work',
+
+  // Textile & Fiber Arts
+  'Embroidery', 'Cross Stitch', 'Weaving', 'Knitting', 'Crochet',
+  'Fabric Painting', 'Batik Art', 'Tie Dye', 'Block Printing',
+
+  // Mixed Media & Other
+  'Mixed Media', 'Collage Art', 'Assemblage Art', 'Resin Art',
+  'Pottery', 'Ceramics', 'Glass Painting', 'Stained Glass',
+  'Canvas Painting', 'Home Decor', 'Interior Design',
 ]
 
 export default function ArtistSetupPage() {
   const navigate = useNavigate()
   const { currentUserId, currentUserName, currentUserEmail, becomeArtist, categories } = useApp()
 
-  // Skills come from the same DB categories table used by ExplorePage
-  const skillOptions = categories.length > 0
-    ? [...categories].sort((a, b) => a.name.localeCompare(b.name)).map(c => c.name)
-    : FALLBACK_SKILLS
+  // Always use FALLBACK_SKILLS as primary source (comprehensive list)
+  // Augment with backend categories if available
+  const skillOptions = (() => {
+    const allSkills = new Set([...FALLBACK_SKILLS]);
+    if (categories && categories.length > 0) {
+      categories.forEach(c => allSkills.add(c.name));
+    }
+    return Array.from(allSkills).sort();
+  })();
   const [name, setName] = useState(currentUserName || '')
   const [bio, setBio] = useState('')
   const [selectedState, setSelectedState] = useState('')
   const [selectedCity, setSelectedCity] = useState('')
   const [cities, setCities] = useState<string[]>([])
   const [cityLoading, setCityLoading] = useState(false)
-  const [citySearch, setCitySearch] = useState('')
-  const [skills, setSkills] = useState<string[]>([])
-  const [priceStart, setPriceStart] = useState('')
+   const [citySearch, setCitySearch] = useState('')
+   const [skills, setSkills] = useState<string[]>([])
+   const [customSkill, setCustomSkill] = useState('')
+   const [priceStart, setPriceStart] = useState('')
   const [portfolioImages, setPortfolioImages] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -51,11 +92,25 @@ export default function ArtistSetupPage() {
     ? cities.filter(c => c.toLowerCase().includes(citySearch.toLowerCase()))
     : cities
 
-  const toggleSkill = (skill: string) => {
-    setSkills(prev =>
-      prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]
-    )
-  }
+   const toggleSkill = (skill: string) => {
+     setSkills(prev =>
+       prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]
+     )
+   }
+
+   const addCustomSkill = () => {
+     const trimmed = customSkill.trim()
+     if (trimmed && !skills.includes(trimmed)) {
+       setSkills(prev => [...prev, trimmed])
+       setCustomSkill('')
+     }
+   }
+
+   const removeCustomSkill = (skill: string) => {
+     if (!FALLBACK_SKILLS.includes(skill)) {
+       setSkills(prev => prev.filter(s => s !== skill))
+     }
+   }
 
   const handleSubmit = async () => {
     if (!name.trim()) { setError('Please enter your name'); return }
@@ -67,33 +122,38 @@ export default function ArtistSetupPage() {
     setError('')
 
     try {
-      const location = selectedCity ? `${selectedCity}, ${selectedState}` : selectedState
-
-      const artistData = {
-        id: currentUserId || 'demo-artist',
-        userId: currentUserId || 'demo-artist',
-        name: name.trim(),
-        email: currentUserEmail || '',
-        bio: bio.trim(),
-        location,
-        skills,
-        priceRange: { min: parseInt(priceStart) || 500, max: (parseInt(priceStart) || 500) * 5 },
-        rating: 0,
-        reviewCount: 0,
-        completedOrders: 0,
+      // Create artist profile with portfolio items
+      const profileData = {
+        bio: bio.trim() || 'Artist profile',
+        skills: skills || [],
+        categories: skills || [],
+        startingPrice: parseInt(priceStart) || 500,
+        pricingCurrency: 'INR',
+        pricingNotes: '',
+        availability: 'available',
         portfolio: portfolioImages.map((img, index) => ({
-          id: `portfolio-${index + 1}`,
           title: `Artwork ${index + 1}`,
           imageUrl: img,
-          category: skills[0] || 'Art'
-        })),
-        availability: 'available' as const,
-        verified: false,
-        joinedDate: new Date().toISOString().split('T')[0],
-        responseTime: '< 2 hours'
+          category: skills[0] || 'Art',
+          description: ''
+        }))
       }
 
-      await addArtist(artistData)
+      await createArtistProfile(profileData)
+
+      // Update user location in profile
+      const userUpdateData = {
+        displayName: name.trim(),
+        locationCity: selectedCity || null,
+        locationState: selectedState || null
+      }
+
+      // Call updateUserProfile if available
+      const updateUserProfile = (await import('@/services/apiDataService')).updateUserProfile
+      await updateUserProfile(userUpdateData).catch(() => {
+        // Ignore error, profile was still created
+      })
+
       becomeArtist()
       setSaved(true)
 
@@ -123,7 +183,7 @@ export default function ArtistSetupPage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-950 transition-colors">
+    <div className="h-full overflow-y-auto common-page-bg transition-colors">
       {/* Header */}
       <div className="bg-gradient-to-r from-amber-600 to-orange-600 text-white p-6">
         <div className="flex items-center gap-3 mb-4">
@@ -216,24 +276,84 @@ export default function ArtistSetupPage() {
 
         {/* Skills */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Skills * (select multiple)</label>
-          <div className="flex flex-wrap gap-2">
-            {skillOptions.map(skill => (
-              <button
-                key={skill}
-                onClick={() => toggleSkill(skill)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                  skills.includes(skill)
-                    ? 'bg-amber-600 text-white shadow-md'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                }`}
-              >
-                {skill}
-              </button>
-            ))}
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            ✨ Skills * (select multiple from below or add custom)
+          </label>
+
+          {/* Selected Custom Skills */}
+          {skills.some(s => !skillOptions.includes(s)) && (
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-2">Your Custom Skills:</p>
+              <div className="flex flex-wrap gap-2">
+                {skills.filter(s => !skillOptions.includes(s)).map(skill => (
+                  <button
+                    key={skill}
+                    onClick={() => removeCustomSkill(skill)}
+                    className="px-3 py-1.5 rounded-full text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 transition-all flex items-center gap-1.5"
+                    title="Click to remove"
+                  >
+                    {skill}
+                    <span>×</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Predefined Skills - Always Show All */}
+          <div className="mb-4">
+            <p className="text-xs font-semibold text-gray-600 dark:text-gray-500 mb-2">
+              📚 Choose from our list ({skillOptions.length} available):
+            </p>
+            <div className="flex flex-wrap gap-2 p-3 border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900">
+              {skillOptions.length > 0 ? (
+                skillOptions.map(skill => (
+                  <button
+                    key={skill}
+                    onClick={() => toggleSkill(skill)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                      skills.includes(skill)
+                        ? 'bg-amber-600 text-white shadow-md ring-2 ring-amber-300'
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    {skill}
+                  </button>
+                ))
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Loading skills...</p>
+              )}
+            </div>
           </div>
+
+          {/* Custom Skill Input */}
+          <div className="mb-3">
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">
+              ➕ Add Custom Skill (if not listed):
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={customSkill}
+                onChange={e => setCustomSkill(e.target.value)}
+                onKeyPress={e => e.key === 'Enter' && addCustomSkill()}
+                placeholder="e.g., Fresco Painting, Etching, etc."
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 dark:placeholder-gray-500 text-sm"
+              />
+              <button
+                type="button"
+                onClick={addCustomSkill}
+                className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all font-medium text-sm"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
           {skills.length > 0 && (
-            <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">{skills.length} skills selected</p>
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 font-semibold">
+              ✓ {skills.length} skill{skills.length > 1 ? 's' : ''} selected
+            </p>
           )}
         </div>
 

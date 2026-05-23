@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { collection, getDocs, doc, deleteDoc, setDoc, updateDoc } from 'firebase/firestore'
-import { db } from '@/config/firebase'
+import { API_BASE_URL } from '@/config/api'
 import {
   Shield, LogOut, Users, Search, Plus, Edit, Trash2, X, Save,
   Loader2, ChevronDown, ChevronUp, Eye, UserCheck, Palette,
@@ -737,37 +736,38 @@ export default function AdminDashboardPage() {
   const fetchAllUsers = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true)
     try {
-      const usersMap = new Map<string, UserData>()
-      const usersSnap = await getDocs(collection(db, 'users'))
-      usersSnap.forEach(docSnap => {
-        const d = docSnap.data()
-        usersMap.set(docSnap.id, {
-          id: docSnap.id, name: d.name || '', email: d.email || '',
-          role: d.role || 'customer', phone: d.phone || '',
-          location: d.location || '', joinedDate: d.joinedDate || d.createdAt || '', isArtist: false
-        })
-      })
-      const artistsSnap = await getDocs(collection(db, 'artists'))
-      artistsSnap.forEach(docSnap => {
-        const d = docSnap.data()
-        const id = d.userId || docSnap.id
-        const existing = usersMap.get(id)
-        const profile = {
-          bio: d.bio || '', skills: d.skills || [],
-          priceRange: d.priceRange || { min: 0, max: 0 },
-          rating: d.rating || 0, reviewCount: d.reviewCount || 0,
-          completedOrders: d.completedOrders || 0,
-          availability: d.availability || 'available', verified: d.verified || false, portfolio: d.portfolio || []
-        }
-        if (existing) {
-          existing.isArtist = true; existing.artistProfile = profile
-          if (!existing.location && d.location) existing.location = d.location
-          if (!existing.name && d.name) existing.name = d.name
-        } else {
-          usersMap.set(id, { id, name: d.name || '', email: d.email || '', role: 'artist', phone: '', location: d.location || '', joinedDate: d.joinedDate || '', isArtist: true, artistProfile: profile })
+      const token = sessionStorage.getItem('hunarhub_access_token')
+      const res = await fetch(`${API_BASE_URL}/artists`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         }
       })
-      const allUsers = Array.from(usersMap.values())
+      const payload: any = await res.json().catch(() => ({}))
+      const content = payload?.data?.content || []
+
+      const allUsers: UserData[] = content.map((d: any) => ({
+        id: d.id,
+        name: d.displayName || d.name || '',
+        email: d.email || '',
+        role: 'artist',
+        phone: d.phone || '',
+        location: [d.locationCity, d.locationState].filter(Boolean).join(', '),
+        joinedDate: d.createdAt || '',
+        isArtist: true,
+        artistProfile: {
+          bio: d.bio || '',
+          skills: d.skills || [],
+          priceRange: { min: d.startingPrice || 0, max: (d.startingPrice || 0) * 5 },
+          rating: d.ratingAvg || 0,
+          reviewCount: d.ratingCount || 0,
+          completedOrders: 0,
+          availability: 'available',
+          verified: d.active || false,
+          portfolio: d.portfolio || [],
+        },
+      }))
+
       setUsers(allUsers)
       setStats({ total: allUsers.length, customers: allUsers.filter(u => !u.isArtist).length, artists: allUsers.filter(u => u.isArtist).length })
     } catch (err) { console.error('Error fetching users:', err) }
@@ -777,8 +777,7 @@ export default function AdminDashboardPage() {
   const handleDelete = async (userId: string) => {
     setSaving(true)
     try {
-      await deleteDoc(doc(db, 'users', userId))
-      try { await deleteDoc(doc(db, 'artists', userId)) } catch { /* ok */ }
+      // Backend admin user deletion endpoint is not available yet; local UI removal only.
       const wasArtist = users.find(u => u.id === userId)?.isArtist
       setUsers(prev => prev.filter(u => u.id !== userId))
       setStats(prev => ({ total: prev.total - 1, customers: wasArtist ? prev.customers : prev.customers - 1, artists: wasArtist ? prev.artists - 1 : prev.artists }))
@@ -804,32 +803,7 @@ export default function AdminDashboardPage() {
           : undefined,
       }
 
-      // Always update users collection
-      await updateDoc(doc(db, 'users', updatedUser.id), {
-        name: updatedUser.name,
-        email: updatedUser.email,
-        role: updatedUser.role,
-        phone: updatedUser.phone || '',
-        location: updatedUser.location || '',
-      })
-
-      // If artist, save ALL artist fields
-      if (updatedUser.isArtist && updatedUser.artistProfile) {
-        const ap = updatedUser.artistProfile
-        await updateDoc(doc(db, 'artists', updatedUser.id), {
-          name: updatedUser.name,
-          email: updatedUser.email,
-          location: updatedUser.location || '',
-          bio: ap.bio || '',
-          skills: parsedSkills,
-          priceRange: ap.priceRange || { min: 0, max: 0 },
-          rating: ap.rating || 0,
-          reviewCount: ap.reviewCount || 0,
-          completedOrders: ap.completedOrders || 0,
-          availability: ap.availability || 'available',
-          verified: ap.verified || false,
-        })
-      }
+      // Backend admin edit endpoint is not available yet; update local state only.
 
       setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u))
       setEditingUser(null)
@@ -845,7 +819,7 @@ export default function AdminDashboardPage() {
       const isArtist = newUser.role === 'artist'
       const today = new Date().toISOString().split('T')[0]
 
-      // Always create user doc
+      // Backend admin create endpoint is not available yet; create local row only.
       const userData = {
         name: newUser.name.trim(),
         email: newUser.email.trim(),
@@ -855,7 +829,6 @@ export default function AdminDashboardPage() {
         joinedDate: today,
         createdAt: new Date().toISOString(),
       }
-      await setDoc(doc(db, 'users', userId), userData)
 
       let artistProfile: UserData['artistProfile'] | undefined
 
@@ -886,7 +859,6 @@ export default function AdminDashboardPage() {
           joinedDate: today,
           responseTime: '< 2 hours',
         }
-        await setDoc(doc(db, 'artists', userId), artistData)
         artistProfile = {
           bio: artistData.bio,
           skills: skillsList,

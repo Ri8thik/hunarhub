@@ -1,9 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { signInWithEmailAndPassword } from 'firebase/auth'
-import { collection, query, where, getDocs } from 'firebase/firestore'
-import { auth, db } from '@/config/firebase'
 import { Loader2, Shield, Eye, EyeOff } from 'lucide-react'
+import { API_BASE_URL, API_ENDPOINTS } from '@/config/api'
 
 export default function AdminLoginPage() {
   const navigate = useNavigate()
@@ -23,25 +21,34 @@ export default function AdminLoginPage() {
     setError('')
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password)
-      const uid = userCredential.user.uid
+      const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.AUTH.LOGIN}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
 
-      const adminsRef = collection(db, 'admins')
-      const q = query(adminsRef, where('email', '==', email))
-      const snapshot = await getDocs(q)
+      const payload = await response.json().catch(() => ({})) as any
+      if (!response.ok || !payload?.data?.accessToken) {
+        setError(payload?.message || 'Invalid email or password')
+        setLoading(false)
+        return
+      }
 
-      if (snapshot.empty) {
-        await auth.signOut()
+      const user = payload.data.user || {}
+      const roles: string[] = Array.isArray(user.roles) ? user.roles : []
+      if (!roles.includes('ADMIN')) {
         setError('Access denied. You are not an admin.')
         setLoading(false)
         return
       }
 
-      const adminData = snapshot.docs[0].data()
+      sessionStorage.setItem('hunarhub_access_token', payload.data.accessToken)
+      sessionStorage.setItem('hunarhub_refresh_token', payload.data.refreshToken || '')
+
       sessionStorage.setItem('adminSession', JSON.stringify({
-        uid,
+        uid: user.id,
         email,
-        name: adminData.name || 'Admin',
+        name: user.displayName || 'Admin',
         role: 'admin',
         loginTime: new Date().toISOString()
       }))
@@ -49,15 +56,7 @@ export default function AdminLoginPage() {
       navigate('/admin/dashboard')
     } catch (err: any) {
       console.error('Admin login error:', err)
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-        setError('Invalid email or password')
-      } else if (err.code === 'auth/wrong-password') {
-        setError('Wrong password')
-      } else if (err.code === 'auth/too-many-requests') {
-        setError('Too many attempts. Try again later.')
-      } else {
-        setError('Login failed. Please try again.')
-      }
+      setError('Login failed. Please try again.')
     } finally {
       setLoading(false)
     }

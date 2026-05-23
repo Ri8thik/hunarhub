@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useApp } from '@/context/AppContext'
 import { getArtistById, getArtistReviews, addReview, updateArtistRating, createNotification } from '@/services/firestoreService'
-import { ArrowLeft, Star, MapPin, Clock, CheckCircle, MessageCircle, Loader2, X, Send, Briefcase, Award, Image } from 'lucide-react'
+import { ArrowLeft, Star, MapPin, Clock, CheckCircle, Loader2, X, Send, Briefcase, Award, Image } from 'lucide-react'
 
 interface Review {
   id: string
@@ -10,13 +10,14 @@ interface Review {
   rating: number
   comment: string
   createdAt?: string
+  date?: string
   customerId?: string
 }
 
 interface PortfolioItem {
   id: string
   title: string
-  imageUrl: string
+  image: string
   category: string
 }
 
@@ -69,7 +70,10 @@ const styles = `
     position: relative;
     overflow: hidden;
     background: linear-gradient(135deg, #92400e 0%, #b45309 30%, #d97706 65%, #ea580c 100%);
-    padding: 1.5rem;
+    padding: 1rem;
+  }
+  @media (min-width: 640px) {
+    .ap-hero { padding: 1.5rem; }
   }
   .ap-hero::before {
     content: '';
@@ -88,17 +92,23 @@ const styles = `
   }
 
   .ap-avatar {
-    width: 88px; height: 88px;
+    width: 72px; height: 72px;
     border-radius: 50%;
     background: rgba(255,255,255,0.15);
     backdrop-filter: blur(8px);
     border: 3px solid rgba(255,255,255,0.4);
     display: flex; align-items: center; justify-content: center;
-    font-size: 2rem; font-weight: 800; color: #fff;
+    font-size: 1.75rem; font-weight: 800; color: #fff;
     position: relative;
     flex-shrink: 0;
     box-shadow: 0 8px 32px rgba(0,0,0,0.2);
     animation: fadeInUp 0.5s ease both;
+  }
+  @media (min-width: 640px) {
+    .ap-avatar {
+      width: 88px; height: 88px;
+      font-size: 2rem;
+    }
   }
   .ap-avatar-ring {
     position: absolute; inset: -6px;
@@ -108,10 +118,13 @@ const styles = `
   }
 
   .ap-name {
-    font-size: 1.5rem; font-weight: 800;
+    font-size: 1.25rem; font-weight: 800;
     color: #fff; line-height: 1.2;
     text-shadow: 0 2px 8px rgba(0,0,0,0.15);
     animation: fadeInUp 0.5s 0.1s ease both;
+  }
+  @media (min-width: 640px) {
+    .ap-name { font-size: 1.5rem; }
   }
 
   .ap-badge-verified {
@@ -120,22 +133,28 @@ const styles = `
     backdrop-filter: blur(4px);
     border: 1px solid rgba(255,255,255,0.3);
     border-radius: 99px;
-    padding: 2px 10px;
-    font-size: 0.7rem; font-weight: 700;
+    padding: 2px 8px;
+    font-size: 0.65rem; font-weight: 700;
     color: #fff; letter-spacing: 0.05em;
     animation: fadeInUp 0.5s 0.15s ease both;
   }
+  @media (min-width: 640px) {
+    .ap-badge-verified { padding: 2px 10px; font-size: 0.7rem; }
+  }
 
   .ap-stats-bar {
-    display: grid; grid-template-columns: repeat(4, 1fr);
+    display: grid; grid-template-columns: repeat(2, 1fr);
     background: #fff;
     border-bottom: 1px solid #f3f4f6;
     position: relative; z-index: 1;
   }
+  @media (min-width: 640px) {
+    .ap-stats-bar { grid-template-columns: repeat(4, 1fr); }
+  }
   .dark .ap-stats-bar { background: #111827; border-color: #1f2937; }
 
   .ap-stat-item {
-    padding: 1rem 0.5rem;
+    padding: 1rem 0.75rem;
     text-align: center;
     position: relative;
     animation: fadeInUp 0.4s ease both;
@@ -148,36 +167,48 @@ const styles = `
   .dark .ap-stat-item + .ap-stat-item::before { background: #374151; }
 
   .ap-stat-num {
-    font-size: 1.4rem; font-weight: 800;
+    font-size: 1.1rem; font-weight: 800;
     color: #1f2937; line-height: 1;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
+  }
+  @media (min-width: 640px) {
+    .ap-stat-num { font-size: 1.4rem; margin-bottom: 4px; }
   }
   .dark .ap-stat-num { color: #f9fafb; }
   .ap-stat-num.gold { color: #d97706; }
   .ap-stat-label {
-    font-size: 0.65rem; font-weight: 600;
+    font-size: 0.6rem; font-weight: 600;
     text-transform: uppercase; letter-spacing: 0.08em;
     color: #9ca3af;
+  }
+  @media (min-width: 640px) {
+    .ap-stat-label { font-size: 0.65rem; }
   }
 
   .ap-section {
     background: #fff;
-    border-radius: 16px;
-    padding: 1.25rem;
+    border-radius: 14px;
+    padding: 1rem;
     border: 1px solid #f3f4f6;
     box-shadow: 0 2px 12px rgba(0,0,0,0.04);
     animation: fadeInUp 0.5s ease both;
     position: relative;
     overflow: hidden;
   }
+  @media (min-width: 640px) {
+    .ap-section { border-radius: 16px; padding: 1.25rem; }
+  }
   .dark .ap-section { background: #111827; border-color: #1f2937; }
 
   .ap-section-title {
-    font-size: 0.8rem; font-weight: 700;
+    font-size: 0.75rem; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.1em;
     color: #d97706;
     margin-bottom: 0.75rem;
     display: flex; align-items: center; gap: 6px;
+  }
+  @media (min-width: 640px) {
+    .ap-section-title { font-size: 0.8rem; }
   }
   .ap-section-title::after {
     content: '';
@@ -187,21 +218,27 @@ const styles = `
   .dark .ap-section-title::after { background: linear-gradient(to right, #78350f, transparent); }
 
   .ap-bio-text {
-    color: #4b5563; font-size: 0.9rem; line-height: 1.7;
+    color: #4b5563; font-size: 0.875rem; line-height: 1.6;
     font-style: italic;
+  }
+  @media (min-width: 640px) {
+    .ap-bio-text { font-size: 0.9rem; line-height: 1.7; }
   }
   .dark .ap-bio-text { color: #9ca3af; }
 
   .ap-skill-tag {
     display: inline-flex; align-items: center;
-    padding: 6px 14px;
+    padding: 5px 12px;
     background: linear-gradient(135deg, #fffbeb, #fef3c7);
     border: 1px solid #fde68a;
     border-radius: 99px;
-    font-size: 0.8rem; font-weight: 600;
+    font-size: 0.75rem; font-weight: 600;
     color: #92400e;
     transition: all 0.2s ease;
     cursor: default;
+  }
+  @media (min-width: 640px) {
+    .ap-skill-tag { padding: 6px 14px; font-size: 0.8rem; }
   }
   .dark .ap-skill-tag {
     background: linear-gradient(135deg, #451a03, #3b1206);
@@ -216,8 +253,11 @@ const styles = `
   .ap-price-card {
     background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
     border: 1px solid #fde68a;
-    border-radius: 14px; padding: 1.1rem;
+    border-radius: 12px; padding: 1rem;
     position: relative; overflow: hidden;
+  }
+  @media (min-width: 640px) {
+    .ap-price-card { border-radius: 14px; padding: 1.1rem; }
   }
   .dark .ap-price-card {
     background: linear-gradient(135deg, #1c0a00 0%, #1f0e00 100%);
@@ -232,16 +272,22 @@ const styles = `
     pointer-events: none;
   }
   .ap-price-amount {
-    font-size: 1.8rem; font-weight: 900;
+    font-size: 1.5rem; font-weight: 900;
     color: #b45309;
     line-height: 1;
+  }
+  @media (min-width: 640px) {
+    .ap-price-amount { font-size: 1.8rem; }
   }
   .dark .ap-price-amount { color: #fbbf24; }
 
   .ap-avail-card {
-    border-radius: 14px; padding: 1.1rem;
+    border-radius: 12px; padding: 1rem;
     border: 1px solid #e5e7eb;
     background: #fff;
+  }
+  @media (min-width: 640px) {
+    .ap-avail-card { border-radius: 14px; padding: 1.1rem; }
   }
   .dark .ap-avail-card { background: #111827; border-color: #1f2937; }
 
@@ -263,19 +309,25 @@ const styles = `
   .ap-tab-bar {
     display: flex; gap: 4px;
     background: #f3f4f6;
-    border-radius: 14px; padding: 4px;
+    border-radius: 12px; padding: 4px;
     margin-bottom: 1rem;
+  }
+  @media (min-width: 640px) {
+    .ap-tab-bar { border-radius: 14px; }
   }
   .dark .ap-tab-bar { background: #1f2937; }
 
   .ap-tab-btn {
-    flex: 1; padding: 10px 8px;
-    border-radius: 10px;
-    font-size: 0.82rem; font-weight: 600;
+    flex: 1; padding: 9px 6px;
+    border-radius: 8px;
+    font-size: 0.75rem; font-weight: 600;
     border: none; cursor: pointer;
     transition: all 0.25s ease;
     color: #6b7280;
     background: transparent;
+  }
+  @media (min-width: 640px) {
+    .ap-tab-btn { padding: 10px 8px; border-radius: 10px; font-size: 0.82rem; }
   }
   .dark .ap-tab-btn { color: #9ca3af; }
   .ap-tab-btn.active {
@@ -290,8 +342,11 @@ const styles = `
 
   .ap-portfolio-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(1, 1fr);
     gap: 10px;
+  }
+  @media (min-width: 480px) {
+    .ap-portfolio-grid { grid-template-columns: repeat(2, 1fr); }
   }
   @media (min-width: 768px) {
     .ap-portfolio-grid { grid-template-columns: repeat(3, 1fr); }
@@ -300,13 +355,16 @@ const styles = `
   .ap-portfolio-item {
     position: relative;
     aspect-ratio: 1;
-    border-radius: 14px;
+    border-radius: 12px;
     overflow: hidden;
     cursor: pointer;
     border: 2px solid transparent;
     background: linear-gradient(#fff, #fff) padding-box,
                 linear-gradient(135deg, #fde68a, #fed7aa) border-box;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  @media (min-width: 640px) {
+    .ap-portfolio-item { border-radius: 14px; }
   }
   .dark .ap-portfolio-item {
     background: linear-gradient(#111827, #111827) padding-box,
@@ -327,10 +385,13 @@ const styles = `
   .ap-review-card {
     background: #fff;
     border: 1px solid #f3f4f6;
-    border-radius: 14px; padding: 1rem;
+    border-radius: 12px; padding: 0.875rem;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     animation: fadeInUp 0.4s ease both;
     transition: box-shadow 0.2s;
+  }
+  @media (min-width: 640px) {
+    .ap-review-card { border-radius: 14px; padding: 1rem; }
   }
   .dark .ap-review-card { background: #111827; border-color: #1f2937; }
   .ap-review-card:hover { box-shadow: 0 6px 20px rgba(217,119,6,0.12); }
@@ -348,7 +409,10 @@ const styles = `
   .ap-write-review {
     background: linear-gradient(135deg, #fffbeb 0%, #fff7ed 100%);
     border: 1.5px solid #fde68a;
-    border-radius: 16px; padding: 1.25rem;
+    border-radius: 14px; padding: 1rem;
+  }
+  @media (min-width: 640px) {
+    .ap-write-review { border-radius: 16px; padding: 1.25rem; }
   }
   .dark .ap-write-review {
     background: linear-gradient(135deg, #1c0a00, #1f0e00);
@@ -364,15 +428,19 @@ const styles = `
 
   .ap-textarea {
     width: 100%;
-    padding: 12px 16px;
+    padding: 10px 12px;
     border: 1.5px solid #e5e7eb;
-    border-radius: 12px;
-    font-size: 0.88rem;
+    border-radius: 10px;
+    font-size: 0.8rem;
     background: #fff;
     color: #1f2937;
     resize: none;
     transition: border-color 0.2s, box-shadow 0.2s;
     box-sizing: border-box;
+    font-family: inherit;
+  }
+  @media (min-width: 640px) {
+    .ap-textarea { padding: 12px 16px; border-radius: 12px; font-size: 0.88rem; }
   }
   .ap-textarea:focus {
     outline: none;
@@ -387,14 +455,17 @@ const styles = `
 
   .ap-submit-btn {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 10px 22px;
+    padding: 8px 16px;
     background: linear-gradient(135deg, #d97706, #ea580c);
     color: #fff;
-    border: none; border-radius: 12px;
-    font-size: 0.85rem; font-weight: 700;
+    border: none; border-radius: 10px;
+    font-size: 0.8rem; font-weight: 700;
     cursor: pointer;
     transition: all 0.2s ease;
     box-shadow: 0 4px 12px rgba(217,119,6,0.35);
+  }
+  @media (min-width: 640px) {
+    .ap-submit-btn { padding: 10px 22px; border-radius: 12px; font-size: 0.85rem; }
   }
   .ap-submit-btn:hover:not(:disabled) {
     transform: translateY(-2px);
@@ -403,35 +474,52 @@ const styles = `
   .ap-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
   .ap-cta-bar {
-    position: sticky; bottom: 16px;
+    position: fixed; bottom: 0; left: 0; right: 0;
     display: flex; gap: 10px;
-    padding: 0 1rem;
+    padding: 12px 1rem;
+    background: linear-gradient(to top, rgba(255,255,255,0.98), rgba(255,255,255,0.94));
+    backdrop-filter: blur(8px);
+    border-top: 1px solid #e5e7eb;
+    z-index: 40;
     animation: fadeInUp 0.5s 0.3s ease both;
   }
+  .dark .ap-cta-bar {
+    background: linear-gradient(to top, rgba(17,24,39,0.98), rgba(17,24,39,0.94));
+    border-color: #374151;
+  }
+  @media (min-width: 640px) {
+    .ap-cta-bar { padding: 16px 1.5rem; }
+  }
   .ap-cta-main {
-    flex: 1; padding: 15px 20px;
+    flex: 1; padding: 12px 16px;
     background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
-    color: #fff; border: none; border-radius: 16px;
-    font-size: 1rem; font-weight: 800;
+    color: #fff; border: none; border-radius: 12px;
+    font-size: 0.875rem; font-weight: 800;
     cursor: pointer;
     box-shadow: 0 6px 20px rgba(217,119,6,0.4);
     transition: all 0.25s ease;
     display: flex; align-items: center; justify-content: center; gap: 8px;
     letter-spacing: 0.01em;
   }
+  @media (min-width: 640px) {
+    .ap-cta-main { padding: 15px 20px; border-radius: 16px; font-size: 1rem; }
+  }
   .ap-cta-main:hover {
     transform: translateY(-3px);
     box-shadow: 0 10px 28px rgba(217,119,6,0.55);
   }
   .ap-cta-chat {
-    width: 56px; height: 56px;
+    width: 48px; height: 48px;
     border: 2.5px solid #d97706;
     background: #fff; color: #d97706;
-    border-radius: 16px; cursor: pointer;
+    border-radius: 12px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     transition: all 0.25s ease;
     flex-shrink: 0;
     box-shadow: 0 4px 12px rgba(217,119,6,0.15);
+  }
+  @media (min-width: 640px) {
+    .ap-cta-chat { width: 56px; height: 56px; border-radius: 16px; }
   }
   .dark .ap-cta-chat { background: #111827; }
   .ap-cta-chat:hover {
@@ -450,13 +538,16 @@ const styles = `
     backdrop-filter: blur(8px);
   }
   .ap-modal-close {
-    position: absolute; top: 16px; right: 16px;
+    position: absolute; top: 12px; right: 12px;
     background: rgba(255,255,255,0.15);
     border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 50%; width: 40px; height: 40px;
+    border-radius: 50%; width: 36px; height: 36px;
     display: flex; align-items: center; justify-content: center;
     color: #fff; cursor: pointer;
     transition: background 0.2s;
+  }
+  @media (min-width: 640px) {
+    .ap-modal-close { top: 16px; right: 16px; width: 40px; height: 40px; }
   }
   .ap-modal-close:hover { background: rgba(255,255,255,0.3); }
 
@@ -477,22 +568,34 @@ const styles = `
   }
 
   .ap-empty-state {
-    text-align: center; padding: 2.5rem 1rem;
+    text-align: center; padding: 2rem 1rem;
+  }
+  @media (min-width: 640px) {
+    .ap-empty-state { padding: 2.5rem 1rem; }
   }
   .ap-empty-icon {
-    font-size: 2.5rem; margin-bottom: 0.75rem;
+    font-size: 2rem; margin-bottom: 0.75rem;
     animation: float 3s ease-in-out infinite;
     display: block;
   }
-  .ap-empty-text { color: #6b7280; font-size: 0.9rem; }
+  @media (min-width: 640px) {
+    .ap-empty-icon { font-size: 2.5rem; }
+  }
+  .ap-empty-text { color: #6b7280; font-size: 0.85rem; }
+  @media (min-width: 640px) {
+    .ap-empty-text { font-size: 0.9rem; }
+  }
   .dark .ap-empty-text { color: #6b7280; }
 
   .ap-success-banner {
     display: flex; align-items: center; gap: 10px;
     background: linear-gradient(135deg, #d1fae5, #a7f3d0);
     border: 1px solid #6ee7b7;
-    border-radius: 12px; padding: 12px 16px;
-    color: #065f46; font-weight: 600; font-size: 0.9rem;
+    border-radius: 10px; padding: 10px 12px;
+    color: #065f46; font-weight: 600; font-size: 0.8rem;
+  }
+  @media (min-width: 640px) {
+    .ap-success-banner { border-radius: 12px; padding: 12px 16px; font-size: 0.9rem; }
   }
   .dark .ap-success-banner {
     background: linear-gradient(135deg, #064e3b, #065f46);
@@ -501,7 +604,10 @@ const styles = `
 
   .ap-info-row {
     display: flex; align-items: center; gap: 6px;
-    font-size: 0.82rem; color: rgba(255,255,255,0.8);
+    font-size: 0.75rem; color: rgba(255,255,255,0.8);
+  }
+  @media (min-width: 640px) {
+    .ap-info-row { font-size: 0.82rem; }
   }
   .ap-info-row + .ap-info-row { margin-top: 4px; }
 `
@@ -612,7 +718,7 @@ export default function ArtistProfilePage() {
   return (
     <>
       <style>{styles}</style>
-      <div className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-950 transition-colors">
+      <div className="h-full overflow-y-auto common-page-bg transition-colors">
 
         {/* Image Modal */}
         {selectedImage && (
@@ -697,8 +803,8 @@ export default function ArtistProfilePage() {
           ))}
         </div>
 
-        {/* Body */}
-        <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+         {/* Body */}
+         <div style={{ padding: '1.25rem', paddingBottom: '6rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
           {/* About */}
           {artist.bio && (
@@ -784,12 +890,12 @@ export default function ArtistProfilePage() {
                       key={item.id || i}
                       className="ap-portfolio-item"
                       style={{ animationDelay: `${i * 0.06}s` }}
-                      onClick={() => { if (item.imageUrl) setSelectedImage(item.imageUrl) }}
+                      onClick={() => { if (item.image) setSelectedImage(item.image) }}
                     >
-                      {item.imageUrl ? (
+                      {item.image ? (
                         <>
                           <img
-                            src={item.imageUrl}
+                            src={item.image}
                             alt={item.title || `Artwork ${i + 1}`}
                             style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
                             onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.08)')}
@@ -832,7 +938,7 @@ export default function ArtistProfilePage() {
               {/* Write a Review */}
               {currentUserId && currentUserId !== artist.id && (
                 <div className="ap-write-review">
-                  <div style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#b45309', marginBottom: 12 }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#b45309', marginBottom: '12px' }}>
                     ✍ Write a Review
                   </div>
                   {reviewSuccess ? (
@@ -842,8 +948,8 @@ export default function ArtistProfilePage() {
                     </div>
                   ) : (
                     <>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 12 }}>
-                        <span style={{ fontSize: '0.8rem', color: '#6b7280', marginRight: 4 }}>Rating:</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '12px' }}>
+                        <span style={{ fontSize: '0.8rem', color: '#6b7280', marginRight: '4px' }}>Rating:</span>
                         {[1, 2, 3, 4, 5].map(star => (
                           <button
                             key={star}
@@ -858,23 +964,18 @@ export default function ArtistProfilePage() {
                               fill: star <= (reviewHover || reviewRating) ? '#f59e0b' : 'none',
                               color: star <= (reviewHover || reviewRating) ? '#f59e0b' : '#d1d5db',
                               transition: 'all 0.15s'
-                            }} />
+                            } as any} />
                           </button>
                         ))}
-                        {reviewRating > 0 && (
-                          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#d97706', marginLeft: 6 }}>
-                            {['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][reviewRating]}
-                          </span>
-                        )}
                       </div>
                       <textarea
                         className="ap-textarea"
                         value={reviewComment}
-                        onChange={e => setReviewComment(e.target.value.replace(/[0-9]/g, ''))}
+                        onChange={e => setReviewComment(e.target.value)}
                         placeholder="Share your experience with this artist..."
                         rows={3}
                       />
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
                         <button
                           className="ap-submit-btn"
                           onClick={handleSubmitReview}
@@ -912,12 +1013,12 @@ export default function ArtistProfilePage() {
                               }}>You</span>
                             )}
                           </div>
-                          {review.createdAt && (
+                          {(review.createdAt || review.date) && (
                             <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 1 }}>
-                              {typeof review.createdAt === 'string'
-                                ? review.createdAt
-                                : typeof review.createdAt === 'object' && 'seconds' in review.createdAt
-                                  ? new Date((review.createdAt as any).seconds * 1000).toLocaleDateString('en-IN')
+                              {typeof (review.createdAt || review.date) === 'string'
+                                ? (review.createdAt || review.date)
+                                : typeof (review.createdAt || review.date) === 'object' && 'seconds' in (review.createdAt || review.date)
+                                  ? new Date(((review.createdAt || review.date) as any).seconds * 1000).toLocaleDateString('en-IN')
                                   : ''}
                             </div>
                           )}

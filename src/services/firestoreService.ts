@@ -1,33 +1,23 @@
-// ============================================================
-// 🗄️ FIRESTORE SERVICE — ALL DATA FROM FIREBASE ONLY
-// ============================================================
-
 import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  updateDoc,
-  addDoc,
-  query,
-  where,
-  orderBy,
-  limit,
-  onSnapshot,
-  serverTimestamp,
-  writeBatch,
-  type DocumentData,
-  type Unsubscribe,
-} from 'firebase/firestore';
-import { db, isFirebaseConfigured } from '@/config/firebase';
-import { getAuthHeader } from '@/services/sessionManager';
-import { type UserRole, type OrderStatus, type Artist, type Category, type Order, type Review } from '@/types';
-
-// ============================================================
-// USER PROFILES
-// ============================================================
-
+  getArtists as apiGetArtists,
+  getFeaturedArtists as apiGetFeaturedArtists,
+  getArtistById as apiGetArtistById,
+  createArtistProfile as apiCreateArtistProfile,
+  getCategories as apiGetCategories,
+  getOrders as apiGetOrders,
+  getOrderById as apiGetOrderById,
+  createOrder as apiCreateOrder,
+  updateOrderStatus as apiUpdateOrderStatus,
+  createReview as apiCreateReview,
+  getArtistReviews as apiGetArtistReviews,
+  getArtistEarnings as apiGetArtistEarnings,
+  getEarningsLedger,
+  getNotifications as apiGetNotifications,
+  markNotificationRead as apiMarkNotificationRead,
+  markAllNotificationsRead as apiMarkAllNotificationsRead,
+  getCurrentUser,
+} from './apiDataService';
+import type { UserRole, OrderStatus, Artist, Category, Order, Review } from '@/types';
 export interface UserProfileData {
   name: string;
   email: string;
@@ -37,185 +27,10 @@ export interface UserProfileData {
   location: string;
   joinedDate: string;
 }
-
-export async function createUserProfile(uid: string, data: UserProfileData): Promise<void> {
-  if (!isFirebaseConfigured()) {
-    console.log('[Firestore] Firebase not configured');
-    return;
-  }
-  try {
-    await setDoc(doc(db, 'users', uid), {
-      ...data,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    console.log('[Firestore] User profile created:', uid);
-  } catch (error) {
-    console.error('[Firestore] Error creating user profile:', error);
-    throw error;
-  }
-}
-
-export async function getUserProfile(uid: string): Promise<(UserProfileData & { uid: string }) | null> {
-  if (!isFirebaseConfigured()) return null;
-  try {
-    const docSnap = await getDoc(doc(db, 'users', uid));
-    if (docSnap.exists()) {
-      return { uid, ...docSnap.data() } as UserProfileData & { uid: string };
-    }
-    return null;
-  } catch (error) {
-    console.error('[Firestore] Error getting user profile:', error);
-    return null;
-  }
-}
-
-export async function updateUserProfile(uid: string, data: Partial<UserProfileData>): Promise<void> {
-  if (!isFirebaseConfigured()) return;
-  try {
-    await updateDoc(doc(db, 'users', uid), {
-      ...data,
-      updatedAt: serverTimestamp(),
-    });
-  } catch (error) {
-    console.error('[Firestore] Error updating user profile:', error);
-    throw error;
-  }
-}
-
-// ============================================================
-// ARTISTS — FROM FIREBASE ONLY
-// ============================================================
-
-export async function getArtists(): Promise<Artist[]> {
-  if (!isFirebaseConfigured()) {
-    console.warn('[Firestore] Firebase not configured — returning empty array');
-    return [];
-  }
-  try {
-    const snapshot = await getDocs(collection(db, 'artists'));
-    const artists = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as Artist[];
-    console.log('[Firestore] Fetched artists from DB:', artists.length);
-    return artists;
-  } catch (error) {
-    console.error('[Firestore] Error fetching artists:', error);
-    return [];
-  }
-}
-
-export async function getFeaturedArtists(): Promise<Artist[]> {
-  if (!isFirebaseConfigured()) return [];
-  try {
-    const q = query(collection(db, 'artists'), where('featured', '==', true), limit(6));
-    const snapshot = await getDocs(q);
-    const artists = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as Artist[];
-    return artists;
-  } catch (error) {
-    console.error('[Firestore] Error fetching featured artists:', error);
-    return [];
-  }
-}
-
-export async function addArtist(artistData: Record<string, unknown>): Promise<void> {
-  if (!isFirebaseConfigured()) {
-    console.log('[Firestore] Firebase not configured');
-    return;
-  }
-  try {
-    const artistId = artistData.id as string || `artist-${Date.now()}`;
-    await setDoc(doc(db, 'artists', artistId), {
-      ...artistData,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    console.log('[Firestore] Artist profile created:', artistId);
-  } catch (error) {
-    console.error('[Firestore] Error creating artist profile:', error);
-    throw error;
-  }
-}
-
-export async function getArtistById(artistId: string): Promise<Artist | null> {
-  if (!isFirebaseConfigured()) return null;
-  try {
-    const docSnap = await getDoc(doc(db, 'artists', artistId));
-    if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() } as unknown as Artist;
-    }
-    return null;
-  } catch (error) {
-    console.error('[Firestore] Error fetching artist:', error);
-    return null;
-  }
-}
-
-/**
- * Real-time listener for the entire artists collection.
- * Fires immediately with current data, then on every change.
- */
-export function subscribeToArtists(
-  callback: (artists: Artist[]) => void
-): Unsubscribe {
-  if (!isFirebaseConfigured()) {
-    callback([]);
-    return () => {};
-  }
-  return onSnapshot(collection(db, 'artists'), (snapshot) => {
-    const artists = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as Artist[];
-    console.log('[Firestore] 🔴 Real-time artists update:', artists.length);
-    callback(artists);
-  }, (error) => {
-    console.error('[Firestore] Error in artists listener:', error);
-  });
-}
-
-/**
- * Real-time listener for the categories collection.
- */
-export function subscribeToCategories(
-  callback: (categories: Category[]) => void
-): Unsubscribe {
-  if (!isFirebaseConfigured()) {
-    callback([]);
-    return () => {};
-  }
-  return onSnapshot(collection(db, 'categories'), (snapshot) => {
-    const categories = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as Category[];
-    console.log('[Firestore] 🔴 Real-time categories update:', categories.length);
-    callback(categories);
-  }, (error) => {
-    console.error('[Firestore] Error in categories listener:', error);
-  });
-}
-
-// ============================================================
-// CATEGORIES — FROM FIREBASE ONLY
-// ============================================================
-
-export async function getCategories(): Promise<Category[]> {
-  if (!isFirebaseConfigured()) {
-    console.warn('[Firestore] Firebase not configured — returning empty array');
-    return [];
-  }
-  try {
-    const snapshot = await getDocs(collection(db, 'categories'));
-    const categories = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as Category[];
-    console.log('[Firestore] Fetched categories from DB:', categories.length);
-    return categories;
-  } catch (error) {
-    console.error('[Firestore] Error fetching categories:', error);
-    return [];
-  }
-}
-
-// ============================================================
-// ORDERS — FROM FIREBASE ONLY
-// ============================================================
-
 export interface CreateOrderData {
   customerId: string;
   customerName: string;
-  customerPhone: string;   // stored but NEVER exposed to artist
+  customerPhone: string;
   artistId: string;
   artistName: string;
   title: string;
@@ -225,184 +40,14 @@ export interface CreateOrderData {
   deadline: string;
   category: string;
 }
-
-export async function createOrder(data: CreateOrderData): Promise<string> {
-  if (!isFirebaseConfigured()) {
-    console.log('[Firestore] Firebase not configured');
-    return `o${Date.now()}`;
-  }
-  try {
-    const orderData = {
-      ...data,
-      status: 'requested' as OrderStatus,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-    const docRef = await addDoc(collection(db, 'orders'), orderData);
-    console.log('[Firestore] Order created:', docRef.id);
-    return docRef.id;
-  } catch (error) {
-    console.error('[Firestore] Error creating order:', error);
-    throw error;
-  }
-}
-
-export async function getOrders(userId: string, role: UserRole): Promise<Order[]> {
-  if (!isFirebaseConfigured()) return [];
-  try {
-    const field = role === 'customer' ? 'customerId' : 'artistId';
-    const q = query(collection(db, 'orders'), where(field, '==', userId));
-    const snapshot = await getDocs(q);
-    const orders = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as Order[];
-    console.log('[Firestore] Fetched orders from DB:', orders.length);
-    return orders;
-  } catch (error) {
-    console.error('[Firestore] Error fetching orders:', error);
-    return [];
-  }
-}
-
-export async function getOrderById(orderId: string): Promise<Order | null> {
-  if (!isFirebaseConfigured()) return null;
-  try {
-    const docSnap = await getDoc(doc(db, 'orders', orderId));
-    if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() } as unknown as Order;
-    }
-    return null;
-  } catch (error) {
-    console.error('[Firestore] Error fetching order:', error);
-    return null;
-  }
-}
-
-export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
-  if (!isFirebaseConfigured()) return;
-  try {
-    // 1. Update the order status
-    await updateDoc(doc(db, 'orders', orderId), {
-      status,
-      updatedAt: serverTimestamp(),
-    });
-
-    // 2. If marked completed, increment completedOrders on the artist doc
-    if (status === 'completed') {
-      const orderSnap = await getDoc(doc(db, 'orders', orderId));
-      if (orderSnap.exists()) {
-        const artistId = orderSnap.data().artistId as string;
-        if (artistId) {
-          const artistRef = doc(db, 'artists', artistId);
-          const artistSnap = await getDoc(artistRef);
-          if (artistSnap.exists()) {
-            const current = (artistSnap.data().completedOrders as number) || 0;
-            await updateDoc(artistRef, {
-              completedOrders: current + 1,
-              updatedAt: serverTimestamp(),
-            });
-            console.log('[Firestore] ✅ completedOrders incremented for artist:', artistId, '->', current + 1);
-          }
-        }
-      }
-    }
-  } catch (error) {
-    console.error('[Firestore] Error updating order status:', error);
-    throw error;
-  }
-}
-
-export function subscribeToOrders(
-  userId: string,
-  role: UserRole,
-  callback: (orders: DocumentData[]) => void
-): Unsubscribe {
-  if (!isFirebaseConfigured()) {
-    callback([]);
-    return () => {};
-  }
-  const field = role === 'customer' ? 'customerId' : 'artistId';
-  const q = query(collection(db, 'orders'), where(field, '==', userId));
-  return onSnapshot(q, (snapshot) => {
-    const orders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-    callback(orders);
-  });
-}
-
-// ============================================================
-// REVIEWS — FROM FIREBASE ONLY
-// ============================================================
-
 export interface CreateReviewData {
-  orderId: string;
+  orderId?: string;
   customerId: string;
   customerName: string;
   artistId: string;
   rating: number;
   comment: string;
 }
-
-export async function createReview(data: CreateReviewData): Promise<void> {
-  if (!isFirebaseConfigured()) return;
-  try {
-    await addDoc(collection(db, 'reviews'), {
-      ...data,
-      customerAvatar: '',
-      date: new Date().toISOString().split('T')[0],
-      createdAt: serverTimestamp(),
-    });
-  } catch (error) {
-    console.error('[Firestore] Error creating review:', error);
-    throw error;
-  }
-}
-
-export async function getArtistReviews(artistId: string): Promise<Review[]> {
-  if (!isFirebaseConfigured()) return [];
-  try {
-    const q = query(collection(db, 'reviews'), where('artistId', '==', artistId));
-    const snapshot = await getDocs(q);
-    const reviews = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as Review[];
-    console.log('[Firestore] Fetched reviews for artist:', artistId, reviews.length);
-    return reviews;
-  } catch (error) {
-    console.error('[Firestore] Error fetching reviews:', error);
-    return [];
-  }
-}
-
-/**
- * Recalculates and persists the average rating + review count for an artist.
- * Call this every time a new review is submitted.
- */
-export async function updateArtistRating(
-  artistId: string,
-  allReviews: { rating: number }[]
-): Promise<{ newRating: number; newCount: number }> {
-  const newCount = allReviews.length;
-  const newRating =
-    newCount > 0
-      ? Math.round((allReviews.reduce((sum, r) => sum + r.rating, 0) / newCount) * 10) / 10
-      : 0;
-
-  if (isFirebaseConfigured()) {
-    try {
-      await updateDoc(doc(db, 'artists', artistId), {
-        rating: newRating,
-        reviewCount: newCount,
-        updatedAt: serverTimestamp(),
-      });
-      console.log(`[Firestore] ✅ Artist ${artistId} rating updated → ${newRating} (${newCount} reviews)`);
-    } catch (error) {
-      console.error('[Firestore] Error updating artist rating:', error);
-      throw error;
-    }
-  }
-  return { newRating, newCount };
-}
-
-// ============================================================
-// CHAT / MESSAGES — FROM FIREBASE ONLY
-// ============================================================
-
 export interface ChatThread {
   id: string;
   participants: string[];
@@ -412,7 +57,6 @@ export interface ChatThread {
   unreadCount: number;
   orderId?: string;
 }
-
 export interface ChatMessage {
   id: string;
   threadId: string;
@@ -423,212 +67,19 @@ export interface ChatMessage {
   read: boolean;
   createdAt: string;
 }
-
-export async function getChatThreads(userId: string): Promise<ChatThread[]> {
-  if (!isFirebaseConfigured()) return [];
-  try {
-    const q = query(collection(db, 'chatThreads'), where('participants', 'array-contains', userId));
-    const snapshot = await getDocs(q);
-    const threads = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as ChatThread[];
-    return threads;
-  } catch (error) {
-    console.error('[Firestore] Error fetching chat threads:', error);
-    return [];
-  }
-}
-
-export async function getChatMessages(threadId: string): Promise<ChatMessage[]> {
-  if (!isFirebaseConfigured()) return [];
-  try {
-    const q = query(collection(db, 'messages'), where('threadId', '==', threadId), orderBy('createdAt', 'asc'));
-    const snapshot = await getDocs(q);
-    const messages = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as ChatMessage[];
-    return messages;
-  } catch (error) {
-    console.error('[Firestore] Error fetching messages:', error);
-    return [];
-  }
-}
-
-export async function sendMessage(
-  threadId: string,
-  senderId: string,
-  receiverId: string,
-  content: string,
-  type: 'text' | 'image' = 'text'
-): Promise<void> {
-  if (!isFirebaseConfigured()) return;
-  try {
-    await addDoc(collection(db, 'messages'), {
-      threadId, senderId, receiverId, content, type, read: false,
-      createdAt: serverTimestamp(),
-    });
-    await updateDoc(doc(db, 'chatThreads', threadId), {
-      lastMessage: content,
-      lastMessageTime: serverTimestamp(),
-    });
-  } catch (error) {
-    console.error('[Firestore] Error sending message:', error);
-    throw error;
-  }
-}
-
-export function subscribeToMessages(
-  threadId: string,
-  callback: (messages: DocumentData[]) => void
-): Unsubscribe {
-  if (!isFirebaseConfigured()) {
-    callback([]);
-    return () => {};
-  }
-  const q = query(collection(db, 'messages'), where('threadId', '==', threadId), orderBy('createdAt', 'asc'));
-  return onSnapshot(q, (snapshot) => {
-    const messages = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-    callback(messages);
-  });
-}
-
-// ============================================================
-// NOTIFICATIONS — FROM FIREBASE ONLY
-// ============================================================
-
 export type NotificationType = 'order' | 'review' | 'status_update' | 'message' | 'system';
-
 export interface NotificationData {
   id?: string;
-  userId: string;         // recipient
+  userId: string;
   type: NotificationType;
   title: string;
   body: string;
   read: boolean;
-  relatedId?: string;     // orderId / artistId — for deep linking
+  relatedId?: string;
   relatedType?: 'order' | 'review' | 'chat';
-  forAdmin: boolean;      // mirrors to admin panel when true
-  createdAt?: unknown;    // Firestore Timestamp
+  forAdmin: boolean;
+  createdAt?: unknown;
 }
-
-/** Write a new notification document */
-export async function createNotification(data: Omit<NotificationData, 'id' | 'read' | 'createdAt'>): Promise<void> {
-  if (!isFirebaseConfigured()) return;
-  try {
-    await addDoc(collection(db, 'notifications'), {
-      ...data,
-      read: false,
-      createdAt: serverTimestamp(),
-    });
-    console.log('[Firestore] ✅ Notification created for user:', data.userId, '|', data.title);
-  } catch (error) {
-    // Notifications are best-effort — don't throw
-    console.error('[Firestore] Error creating notification:', error);
-  }
-}
-
-/** One-time fetch — kept for backward compat */
-export async function getNotifications(userId: string): Promise<NotificationData[]> {
-  if (!isFirebaseConfigured()) return [];
-  try {
-    const q = query(
-      collection(db, 'notifications'),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc'),
-      limit(30)
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as NotificationData));
-  } catch (error) {
-    console.error('[Firestore] Error fetching notifications:', error);
-    return [];
-  }
-}
-
-/** Real-time listener for a user's notifications */
-export function subscribeToNotifications(
-  userId: string,
-  callback: (notifications: NotificationData[]) => void
-): Unsubscribe {
-  if (!isFirebaseConfigured()) { callback([]); return () => {}; }
-  try {
-    const q = query(
-      collection(db, 'notifications'),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc'),
-      limit(30)
-    );
-    return onSnapshot(q, (snapshot) => {
-      const notifications = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as NotificationData));
-      callback(notifications);
-    }, (error) => {
-      console.error('[Firestore] Error in notifications listener:', error);
-      callback([]);
-    });
-  } catch (error) {
-    console.error('[Firestore] subscribeToNotifications setup error:', error);
-    callback([]);
-    return () => {};
-  }
-}
-
-/** Real-time listener for admin — all notifications where forAdmin == true */
-export function subscribeToAdminNotifications(
-  callback: (notifications: NotificationData[]) => void
-): Unsubscribe {
-  if (!isFirebaseConfigured()) { callback([]); return () => {}; }
-  try {
-    const q = query(
-      collection(db, 'notifications'),
-      where('forAdmin', '==', true),
-      orderBy('createdAt', 'desc'),
-      limit(50)
-    );
-    return onSnapshot(q, (snapshot) => {
-      const notifications = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as NotificationData));
-      callback(notifications);
-    }, (error) => {
-      console.error('[Firestore] Error in admin notifications listener:', error);
-      callback([]);
-    });
-  } catch (error) {
-    console.error('[Firestore] subscribeToAdminNotifications setup error:', error);
-    callback([]);
-    return () => {};
-  }
-}
-
-/** Mark a single notification as read */
-export async function markNotificationRead(notifId: string): Promise<void> {
-  if (!isFirebaseConfigured()) return;
-  try {
-    await updateDoc(doc(db, 'notifications', notifId), { read: true });
-  } catch (error) {
-    console.error('[Firestore] Error marking notification read:', error);
-  }
-}
-
-/** Batch-mark all unread notifications for a user as read */
-export async function markAllNotificationsRead(userId: string): Promise<void> {
-  if (!isFirebaseConfigured()) return;
-  try {
-    const q = query(
-      collection(db, 'notifications'),
-      where('userId', '==', userId),
-      where('read', '==', false)
-    );
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return;
-
-    const batch = writeBatch(db);
-    snapshot.docs.forEach(d => batch.update(d.ref, { read: true }));
-    await batch.commit();
-    console.log('[Firestore] ✅ Marked', snapshot.size, 'notifications as read for:', userId);
-  } catch (error) {
-    console.error('[Firestore] Error marking all notifications read:', error);
-  }
-}
-
-// ============================================================
-// EARNINGS & TRANSACTIONS — FROM FIREBASE ONLY
-// ============================================================
-
 export interface EarningsData {
   artistId: string;
   artistName: string;
@@ -638,7 +89,6 @@ export interface EarningsData {
   completedOrders: number;
   platformFee: number;
 }
-
 export interface TransactionData {
   artistId: string;
   title: string;
@@ -648,149 +98,163 @@ export interface TransactionData {
   status: 'completed' | 'pending' | 'processing';
   description: string;
 }
-
-export async function getArtistEarnings(artistId: string): Promise<EarningsData | null> {
-  if (!isFirebaseConfigured()) return null;
-  try {
-    const docSnap = await getDoc(doc(db, 'earnings', artistId));
-    if (docSnap.exists()) {
-      return { artistId: docSnap.id, ...docSnap.data() } as EarningsData;
+const createUnsubscribe = () => () => {};
+const poll = <T>(callback: (value: T) => void, fetcher: () => Promise<T>, interval = 5000) => {
+  let active = true;
+  const run = async () => {
+    try {
+      const value = await fetcher();
+      if (active) callback(value);
+    } catch (error) {
+      console.error('[API Adapter] Poll error:', error);
+      if (active) callback([] as T);
     }
-    return null;
-  } catch (error) {
-    console.error('[Firestore] Error fetching artist earnings:', error);
-    return null;
-  }
-}
-
-export async function getAllEarnings(): Promise<EarningsData[]> {
-  if (!isFirebaseConfigured()) return [];
-  try {
-    const snapshot = await getDocs(collection(db, 'earnings'));
-    return snapshot.docs.map(d => ({ artistId: d.id, ...d.data() })) as EarningsData[];
-  } catch (error) {
-    console.error('[Firestore] Error fetching all earnings:', error);
-    return [];
-  }
-}
-
-export async function getArtistTransactions(artistId: string): Promise<TransactionData[]> {
-  if (!isFirebaseConfigured()) return [];
-  try {
-    const q = query(collection(db, 'transactions'), where('artistId', '==', artistId));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as TransactionData[];
-  } catch (error) {
-    console.error('[Firestore] Error fetching transactions:', error);
-    return [];
-  }
-}
-
-export async function getAllTransactions(): Promise<TransactionData[]> {
-  if (!isFirebaseConfigured()) return [];
-  try {
-    const snapshot = await getDocs(collection(db, 'transactions'));
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as TransactionData[];
-  } catch (error) {
-    console.error('[Firestore] Error fetching all transactions:', error);
-    return [];
-  }
-}
-
-// ============================================================
-// CHECK IF USER IS AN ARTIST — DIRECTLY FROM FIRESTORE
-// ============================================================
-
-export async function checkIsArtist(userId: string): Promise<boolean> {
-  if (!isFirebaseConfigured()) {
-    console.log('[Firestore] Firebase not configured — returning false for isArtist');
-    return false;
-  }
-  try {
-    // Method 1: Check if document with userId exists in artists collection
-    const docSnap = await getDoc(doc(db, 'artists', userId));
-    if (docSnap.exists()) {
-      console.log('[Firestore] ✅ Artist profile found for user:', userId);
-      return true;
-    }
-
-    // Method 2: Query artists collection where userId field matches
-    const q = query(collection(db, 'artists'), where('userId', '==', userId), limit(1));
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-      console.log('[Firestore] ✅ Artist profile found (by userId field) for user:', userId);
-      return true;
-    }
-
-    console.log('[Firestore] ❌ No artist profile found for user:', userId);
-    return false;
-  } catch (error) {
-    console.error('[Firestore] Error checking artist status:', error);
-    return false;
-  }
-}
-
-// ============================================================
-// ADD REVIEW — SIMPLE FORMAT (used by ArtistProfilePage)
-// ============================================================
-
-export async function addReview(reviewData: {
-  artistId: string
-  customerId: string
-  customerName: string
-  rating: number
-  comment: string
-  createdAt: string
-}): Promise<void> {
-  if (!isFirebaseConfigured()) {
-    console.log('[Firestore] Demo mode — review not saved')
-    return
-  }
-  try {
-    // Check if user is authenticated
-    const { getAuth } = await import('firebase/auth')
-    const auth = getAuth()
-    if (!auth.currentUser) {
-      throw new Error('You must be logged in to submit a review. Please logout and login again.')
-    }
-
-    await addDoc(collection(db, 'reviews'), {
-      artistId: reviewData.artistId,
-      customerId: reviewData.customerId,
-      customerName: reviewData.customerName,
-      rating: reviewData.rating,
-      comment: reviewData.comment,
-      date: reviewData.createdAt,
-      customerAvatar: '',
-      createdAt: new Date().toISOString(),
-    })
-    console.log('[Firestore] ✅ Review added for artist:', reviewData.artistId)
-  } catch (error) {
-    console.error('[Firestore] Error adding review:', error)
-    throw error
-  }
-}
-
-// ============================================================
-// API FETCH HELPER
-// ============================================================
-
-export async function apiFetch<T>(
-  url: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const headers = {
-    'Content-Type': 'application/json',
-    ...getAuthHeader(),
-    ...options.headers,
   };
-  const response = await fetch(url, { ...options, headers });
-  if (response.status === 401) {
-    window.dispatchEvent(new CustomEvent('session-expired'));
-    throw new Error('Session expired');
-  }
-  if (!response.ok) {
-    throw new Error(`API Error: ${response.status} ${response.statusText}`);
-  }
-  return response.json();
+  void run();
+  const timer = setInterval(run, interval);
+  return () => {
+    active = false;
+    clearInterval(timer);
+  };
+};
+export async function createUserProfile(uid: string, data: UserProfileData): Promise<void> {
+  console.log('[API Adapter] createUserProfile', uid, data.email);
+}
+export async function getUserProfile(uid: string): Promise<(UserProfileData & { uid: string }) | null> {
+  const user = await getCurrentUser();
+  if (user && typeof user === 'object') return { uid, ...(user as UserProfileData) };
+  return null;
+}
+export async function updateUserProfile(uid: string, data: Partial<UserProfileData>): Promise<void> {
+  console.log('[API Adapter] updateUserProfile', uid, data);
+}
+export async function getArtists(): Promise<Artist[]> { return apiGetArtists(); }
+export async function getFeaturedArtists(): Promise<Artist[]> { return apiGetFeaturedArtists(); }
+export async function getArtistById(artistId: string): Promise<Artist | null> { return apiGetArtistById(artistId); }
+export async function getCategories(): Promise<Category[]> { return apiGetCategories(); }
+export function subscribeToArtists(callback: (artists: Artist[]) => void) { return poll(callback, getArtists); }
+export function subscribeToCategories(callback: (categories: Category[]) => void) { return poll(callback, getCategories); }
+export async function addArtist(artistData: Record<string, unknown>): Promise<void> {
+  await apiCreateArtistProfile(artistData as Record<string, any>);
+}
+export async function createOrder(data: CreateOrderData): Promise<string> {
+  const result = await apiCreateOrder({
+    customerId: data.customerId,
+    customerName: data.customerName,
+    artistId: data.artistId,
+    artistName: data.artistName,
+    title: data.title,
+    description: data.description,
+    referenceImages: data.referenceImages,
+    budget: data.budget,
+    deadline: data.deadline,
+    category: data.category,
+  });
+  return typeof result === 'string' ? result : ((result as { id?: string }).id || `order-${Date.now()}`);
+}
+export async function getOrders(userId: string, role: UserRole): Promise<Order[]> {
+  void userId;
+  return apiGetOrders(role);
+}
+export async function getOrderById(orderId: string): Promise<Order | null> { return apiGetOrderById(orderId); }
+export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> { await apiUpdateOrderStatus(orderId, status); }
+export function subscribeToOrders(userId: string, role: UserRole, callback: (orders: Order[]) => void) { void userId; return poll(callback, () => apiGetOrders(role)); }
+export async function createReview(data: CreateReviewData): Promise<void> {
+  await apiCreateReview({ orderId: data.orderId, artistId: data.artistId, rating: data.rating, comment: data.comment });
+}
+export async function getArtistReviews(artistId: string): Promise<Review[]> { return apiGetArtistReviews(artistId); }
+export async function updateArtistRating(artistId: string, allReviews: { rating: number }[]): Promise<{ newRating: number; newCount: number }> {
+  const newCount = allReviews.length;
+  const newRating = newCount > 0 ? Math.round((allReviews.reduce((sum, r) => sum + r.rating, 0) / newCount) * 10) / 10 : 0;
+  console.log('[API Adapter] updateArtistRating', artistId, newRating, newCount);
+  return { newRating, newCount };
+}
+export async function getChatThreads(_userId: string): Promise<ChatThread[]> { return []; }
+export async function getChatMessages(_threadId: string): Promise<ChatMessage[]> { return []; }
+export async function sendMessage(_threadId: string, _senderId: string, _receiverId: string, _content: string, _type: 'text' | 'image' = 'text'): Promise<void> { console.log('[API Adapter] sendMessage is not implemented yet'); }
+export function subscribeToMessages(_threadId: string, callback: (messages: ChatMessage[]) => void) { callback([]); return createUnsubscribe(); }
+export async function createNotification(data: Omit<NotificationData, 'id' | 'read' | 'createdAt'>): Promise<void> { console.log('[API Adapter] createNotification', data.userId, data.title); }
+const normalizeNotificationType = (type: string): NotificationType => {
+  const normalized = String(type || '').toLowerCase();
+  if (normalized.includes('order')) return 'order';
+  if (normalized.includes('review')) return 'review';
+  if (normalized.includes('message')) return 'message';
+  if (normalized.includes('payment')) return 'system';
+  return 'system';
+};
+
+const mapNotification = (n: any): NotificationData => ({
+  id: n.id,
+  userId: n.userId || '',
+  type: normalizeNotificationType(n.type),
+  title: n.title || '',
+  body: n.body || '',
+  read: Boolean(n.read),
+  relatedId: n.relatedOrderId || n.relatedId,
+  relatedType: n.relatedOrderId ? 'order' : n.relatedArtistId ? 'chat' : undefined,
+  forAdmin: Boolean(n.forAdmin),
+  createdAt: n.createdAt || undefined,
+});
+
+export async function getNotifications(userId: string): Promise<NotificationData[]> {
+  void userId;
+  const notifications = await apiGetNotifications();
+  return Array.isArray(notifications) ? notifications.map(mapNotification) : [];
+}
+export function subscribeToNotifications(userId: string, callback: (notifications: NotificationData[]) => void) { void userId; return poll(callback, async () => (await getNotifications(userId))); }
+export function subscribeToAdminNotifications(callback: (notifications: NotificationData[]) => void) { return poll(callback, async () => (await getNotifications(''))); }
+export async function markNotificationRead(notifId: string): Promise<void> { await apiMarkNotificationRead(notifId); }
+export async function markAllNotificationsRead(userId: string): Promise<void> { void userId; await apiMarkAllNotificationsRead(); }
+export async function getArtistEarnings(artistId: string): Promise<EarningsData | null> {
+  const summary = await apiGetArtistEarnings(artistId);
+  if (!summary) return null;
+
+  const data = summary as any;
+  return {
+    artistId,
+    artistName: data.artistName || '',
+    totalEarnings: Number(data.totalEarnings || 0),
+    thisMonth: Number(data.thisMonth || 0),
+    pendingPayout: Number(data.pendingPayout || 0),
+    completedOrders: Number(data.completedOrders || 0),
+    platformFee: Number(data.platformFee || 0),
+  };
+}
+export async function getAllEarnings(): Promise<EarningsData[]> { return (await getEarningsLedger()) as EarningsData[]; }
+export async function getArtistTransactions(artistId: string): Promise<TransactionData[]> {
+  const ledger = await getEarningsLedger();
+  const items = Array.isArray(ledger) ? ledger : [];
+
+  return items
+    .filter((entry: any) => !artistId || !entry?.artistId || entry.artistId === artistId)
+    .map((entry: any) => {
+      const rawStatus = String(entry?.status || '').toUpperCase();
+      const isDebit = rawStatus === 'PAID_OUT';
+      const mappedStatus: TransactionData['status'] = rawStatus === 'PENDING'
+        ? 'pending'
+        : rawStatus === 'PAID_OUT'
+          ? 'completed'
+          : 'completed';
+
+      return {
+        artistId: entry?.artistId || artistId,
+        title: entry?.orderTitle ? `Order: ${entry.orderTitle}` : 'Artist Earnings',
+        amount: Number(entry?.amount || 0),
+        type: isDebit ? 'debit' : 'credit',
+        date: entry?.createdAt || '',
+        status: mappedStatus,
+        description: entry?.orderId ? `Order ID: ${entry.orderId}` : `Earning status: ${rawStatus || 'AVAILABLE'}`,
+      };
+    });
+}
+export async function getAllTransactions(): Promise<TransactionData[]> { return []; }
+export async function checkIsArtist(userId: string): Promise<boolean> { return !!(await apiGetArtistById(userId)); }
+export async function addReview(reviewData: { artistId: string; customerId: string; customerName: string; rating: number; comment: string; createdAt: string; orderId?: string }): Promise<void> {
+  // Note: customerId and customerName are derived from the authenticated user on the backend, so we don't need to send them
+  await apiCreateReview({
+    artistId: reviewData.artistId,
+    orderId: reviewData.orderId,  // Optional - can be undefined for standalone reviews
+    rating: reviewData.rating,
+    comment: reviewData.comment
+  });
 }

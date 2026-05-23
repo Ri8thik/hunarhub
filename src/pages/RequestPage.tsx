@@ -8,8 +8,7 @@ import {
 import { getArtistById, createOrder, createNotification } from '@/services/firestoreService';
 import { validateImage, imageToBase64 } from '@/services/imageService';
 import { useApp } from '@/context/AppContext';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { getCurrentUser, updateUserProfile } from '@/services/apiDataService';
 import { Avatar } from '@/components/Avatar';
 import { type Artist } from '@/types';
 
@@ -17,6 +16,12 @@ import { type Artist } from '@/types';
    VALIDATION
 ───────────────────────────────────────── */
 const todayStr = () => new Date().toISOString().split('T')[0];
+
+const normalizeIndianPhoneDigits = (value: string) => {
+  const digits = (value || '').replace(/\D/g, '');
+  if (digits.length <= 10) return digits;
+  return digits.slice(-10);
+};
 
 function validate(f: {
   title: string; category: string; description: string;
@@ -45,8 +50,8 @@ function validate(f: {
   if (!f.deadline) e.deadline = 'Deadline is required';
   else if (f.deadline <= todayStr()) e.deadline = 'Must be a future date';
 
-  // Phone validation — required when no phone on file (Google users)
-  if (f.phoneRequired || f.phone.trim()) {
+  // Phone validation — required only when no phone exists on profile
+  if (f.phoneRequired) {
     const digits = f.phone.replace(/\D/g, '');
     if (!f.phone.trim()) e.phone = 'Mobile number is required to contact you';
     else if (digits.length !== 10) e.phone = 'Enter a valid 10-digit mobile number';
@@ -483,16 +488,16 @@ export function RequestPage() {
   const [phoneFromDB, setPhoneFromDB] = useState('');
   const phoneRequired = !phoneFromDB.trim();
 
-  // Fetch phone directly from Firestore users/{currentUserId} on mount
+  // Fetch phone from backend user profile on mount
   useEffect(() => {
     if (!currentUserId) return;
     (async () => {
       try {
-        const snap = await getDoc(doc(db, 'users', currentUserId));
-        if (snap.exists()) {
-          const saved = (snap.data().phone || '').trim();
+        const user: any = await getCurrentUser();
+        if (user) {
+          const saved = (user.phone || '').trim();
           setPhoneFromDB(saved);
-          if (saved) setPhone(saved);
+          if (saved) setPhone(normalizeIndianPhoneDigits(saved));
         }
       } catch (err) {
         console.error('[RequestPage] Failed to fetch user phone:', err);
@@ -504,6 +509,7 @@ export function RequestPage() {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showBanner, setShowBanner] = useState(false);
+  const submitFeedbackRef = useRef<HTMLDivElement>(null);
 
   // Images
   const [images, setImages] = useState<{ file: File; preview: string; base64: string }[]>([]);
@@ -599,7 +605,14 @@ export function RequestPage() {
     setTouched({ title: true, category: true, description: true, budget: true, deadline: true, phone: true });
     const errs = runValidate();
     if (Object.keys(errs).length > 0) {
+      const fieldSummary = Object.keys(errs)
+        .map(k => k.charAt(0).toUpperCase() + k.slice(1))
+        .join(', ');
+      setSubmitError(`Please fix: ${fieldSummary}.`);
       setShowBanner(true);
+      setTimeout(() => {
+        submitFeedbackRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 0);
       setTimeout(() => setShowBanner(false), 4000);
       return;
     }
@@ -608,13 +621,10 @@ export function RequestPage() {
     try {
       const formattedPhone = phone.replace(/\D/g, '').replace(/(\d{5})(\d{5})/, '+91 $1 $2');
 
-      // If user had no phone on file (Google sign-in), save it to their user profile now
+      // If user had no phone on file, save it to backend profile now
       if (phoneRequired && currentUserId) {
         try {
-          await updateDoc(doc(db, 'users', currentUserId), {
-            phone: formattedPhone,
-            updatedAt: new Date().toISOString(),
-          });
+          await updateUserProfile({ phone: formattedPhone });
         } catch (err) {
           console.error('[RequestPage] Failed to save phone to user profile:', err);
           // Non-blocking — still proceed with order creation
@@ -650,6 +660,9 @@ export function RequestPage() {
     } catch (err: any) {
       console.error('[RequestPage] Order creation failed:', err);
       setSubmitError(err?.message || 'Failed to submit request. Please try again.');
+      setTimeout(() => {
+        submitFeedbackRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 0);
     } finally {
       setSubmitting(false);
     }
@@ -1148,6 +1161,7 @@ export function RequestPage() {
               </div>
 
               {/* Submit */}
+              <div ref={submitFeedbackRef} />
               <button type="submit" className="rq-submit" disabled={submitting || imgProcessing}>
                 {submitting
                   ? <><Loader2 size={17} className="animate-spin" /> Submitting…</>

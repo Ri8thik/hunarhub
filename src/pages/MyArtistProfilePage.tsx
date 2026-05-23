@@ -2,14 +2,14 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '@/context/AppContext'
 import { getArtistById, getArtistReviews } from '@/services/firestoreService'
+import { getCurrentUser, updateUserProfile, updateArtistProfile } from '@/services/apiDataService'
 import { validateImage, imageToBase64 } from '@/services/imageService'
 import { getIndianStates, getCitiesByState } from '@/services/locationService'
-import { doc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '@/config/firebase'
+import { updateSessionUserData } from '@/services/sessionManager'
 import {
   ArrowLeft, MapPin, Star, Clock, CheckCircle, Edit, Loader2, X,
   TrendingUp, Palette, Award, Image, Save, Search, Upload,
-  CheckCircle2, AlertCircle, Plus, Trash2, User, BadgeCheck, Phone
+  CheckCircle2, AlertCircle, Plus, Trash2, User, Phone
 } from 'lucide-react'
 
 /* ─────────────────────── TYPES ─────────────────────── */
@@ -17,7 +17,7 @@ interface Review {
   id: string; customerName?: string; rating: number; comment: string; createdAt?: string;
 }
 interface PortfolioItem {
-  id: string; title: string; imageUrl: string; category: string;
+  id: string; title: string; image: string; category: string;
 }
 interface ArtistData {
   id: string; name: string; email?: string; bio?: string; location?: string;
@@ -28,10 +28,46 @@ interface ArtistData {
 }
 
 const SKILLS = [
-  'Sketch','Pencil Drawing','Charcoal Art','Portrait','Caricature',
-  'Oil Painting','Watercolor','Acrylic Painting','Digital Art','Vector Art',
-  'Calligraphy','Mandala Art','Rangoli Design','Mehndi Design','Wall Mural',
-  'Clay Sculpture','Wood Carving','Paper Craft','Handmade Jewelry','Embroidery',
+  // Drawing & Sketching
+  'Sketch', 'Pencil Drawing', 'Charcoal Art', 'Line Art', 'Digital Sketching',
+  
+  // Portrait Art
+  'Portrait', 'Face Painting', 'Caricature', 'Cartoon Drawing',
+  
+  // Painting
+  'Oil Painting', 'Watercolor', 'Acrylic Painting', 'Gouache Painting', 'Tempera Art',
+  
+  // Digital Art
+  'Digital Art', 'Digital Painting', 'Photo Editing', 'Digital Illustration',
+  
+  // Vector & Graphic Design
+  'Vector Art', 'Graphic Design', 'Logo Design', 'Poster Design', 'UI/UX Design',
+  
+  // Lettering & Calligraphy
+  'Calligraphy', 'Hand Lettering', 'Typography', 'Script Writing',
+  
+  // Indian Art Forms
+  'Mandala Art', 'Rangoli Design', 'Mehndi Design', 'Henna Art', 'Kolam Art',
+  'Warli Art', 'Madhubani Painting', 'Pichwai Art', 'Tanjore Painting',
+  
+  // Murals & Street Art
+  'Wall Mural', 'Street Art', 'Graffiti Art', 'Mural Painting',
+  
+  // Sculpture & 3D Art
+  'Clay Sculpture', 'Stone Carving', 'Wood Carving', '3D Modeling', 'Statue Making',
+  
+  // Crafts
+  'Paper Craft', 'Paper Mache', 'Origami', 'Quilling', 'Decoupage',
+  'Jewelry Design', 'Handmade Jewelry', 'Jewelry Making', 'Bead Work',
+  
+  // Textile & Fiber Arts
+  'Embroidery', 'Cross Stitch', 'Weaving', 'Knitting', 'Crochet',
+  'Fabric Painting', 'Batik Art', 'Tie Dye', 'Block Printing',
+  
+  // Mixed Media & Other
+  'Mixed Media', 'Collage Art', 'Assemblage Art', 'Resin Art',
+  'Pottery', 'Ceramics', 'Glass Painting', 'Stained Glass',
+  'Canvas Painting', 'Home Decor', 'Interior Design',
 ]
 
 /* ─────────────────────── STYLES ─────────────────────── */
@@ -405,7 +441,7 @@ const styles = `
 /* ─────────────────────── COMPONENT ─────────────────────── */
 export default function MyArtistProfilePage() {
   const navigate = useNavigate()
-  const { currentUserId } = useApp()
+  const { currentUserId, refreshArtists } = useApp()
   const [artist, setArtist] = useState<ArtistData | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
@@ -430,8 +466,9 @@ export default function MyArtistProfilePage() {
   const [ePrice, setEPrice] = useState('')
   const [eAvail, setEAvail] = useState<'available'|'busy'>('available')
 
-  /* Skills */
-  const [eSkills, setESkills] = useState<string[]>([])
+   /* Skills */
+   const [eSkills, setESkills] = useState<string[]>([])
+   const [customESkill, setCustomESkill] = useState('')
 
   /* Portfolio */
   const [ePortfolio, setEPortfolio]     = useState<PortfolioItem[]>([])
@@ -474,10 +511,10 @@ export default function MyArtistProfilePage() {
     setSaveSuccess(false)
     setTab(startTab || 'basic')
 
-    // Load phone from users collection
+    // Load phone from backend user profile
     try {
-      const userSnap = await getDoc(doc(db, 'users', currentUserId))
-      if (userSnap.exists()) setEPhone(userSnap.data().phone || '')
+      const user: any = await getCurrentUser()
+      if (user) setEPhone(user.phone || '')
     } catch (e) { console.error('Error loading phone:', e) }
 
     // Parse stored location  "City, State"
@@ -528,8 +565,8 @@ export default function MyArtistProfilePage() {
       const v = validateImage(file)
       if (!v.valid) { errors.push(`${file.name}: ${v.error}`); continue }
       try {
-        const base64 = await imageToBase64(file)
-        newItems.push({ id: `p-${Date.now()}-${i}`, title: `Artwork ${ePortfolio.length + newItems.length + 1}`, imageUrl: base64, category: 'Art' })
+         const base64 = await imageToBase64(file)
+         newItems.push({ id: `p-${Date.now()}-${i}`, title: `Artwork ${ePortfolio.length + newItems.length + 1}`, image: base64, category: 'Art' })
       } catch { errors.push(`${file.name}: Failed`) }
     }
     if (errors.length) setPortErrors(errors)
@@ -537,7 +574,7 @@ export default function MyArtistProfilePage() {
     setPortUploading(false)
   }, [ePortfolio.length])
 
-  /* ── Save to Firestore ── */
+  /* ── Save to backend API ── */
   const handleSave = async () => {
     if (!currentUserId || !eName.trim()) return
     setSaving(true)
@@ -545,24 +582,49 @@ export default function MyArtistProfilePage() {
       const location = eCity ? `${eCity}, ${eState}` : eState
       const priceMin = parseInt(ePrice) || artist?.priceRange?.min || 500
       const updates = {
-        name:       eName.trim(),
-        bio:        eBio.trim(),
+        name: eName.trim(),
+        bio: eBio.trim(),
         location,
-        skills:     eSkills,
+        skills: eSkills,
         priceRange: { min: priceMin, max: priceMin * 5 },
         availability: eAvail,
-        portfolio:  ePortfolio,
-        updatedAt:  serverTimestamp(),
+        portfolio: ePortfolio,
       }
-      await updateDoc(doc(db, 'artists', currentUserId), updates)
-      // Also save phone to users collection
-      await updateDoc(doc(db, 'users', currentUserId), {
-        phone: ePhone.trim(),
-        name: eName.trim(),
-        location,
-        updatedAt: serverTimestamp(),
+
+      // Transform portfolio items to the format expected by backend
+      // Only include items with images
+      const portfolioData = ePortfolio
+        .filter(item => item.image && item.image.trim().length > 0)
+        .map(item => ({
+          title: item.title || 'Untitled',
+          imageUrl: item.image,
+          category: item.category || 'General',
+          description: ''
+        }))
+
+      await updateArtistProfile({
+        bio: eBio.trim(),
+        skills: eSkills,
+        categories: eSkills.slice(0, 5),
+        startingPrice: priceMin,
+        pricingCurrency: 'INR',
+        availability: eAvail,
+        portfolio: portfolioData
       })
-      // Instant local update — no need to refetch
+
+      const updatedUser = await updateUserProfile({
+        displayName: eName.trim(),
+        phone: ePhone.trim(),
+        locationCity: eCity || null,
+        locationState: eState || null,
+      })
+
+      updateSessionUserData({
+        displayName: (updatedUser as { displayName?: string } | null)?.displayName || eName.trim(),
+        phoneNumber: (updatedUser as { phone?: string } | null)?.phone || ePhone.trim(),
+      })
+
+      await refreshArtists()
       setArtist(prev => prev ? { ...prev, ...updates } : prev)
       setSaveSuccess(true)
       setTimeout(() => { setShowModal(false); setSaveSuccess(false) }, 2200)
@@ -763,20 +825,107 @@ export default function MyArtistProfilePage() {
 
                       <div className="em-section-lbl"><Award size={11} /> Skills & Expertise</div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                        <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Tap to select / deselect</span>
+                        <span style={{ fontSize: '0.68rem', color: '#64748b' }}>Tap to select / deselect</span>
                         {eSkills.length > 0 && (
                           <span style={{ padding: '2px 9px', borderRadius: 99, background: 'linear-gradient(135deg,#d97706,#ea580c)', color: '#fff', fontSize: '0.62rem', fontWeight: 800 }}>
                             {eSkills.length} selected
                           </span>
                         )}
                       </div>
-                      <div className="em-skills-wrap">
-                        {SKILLS.map(skill => (
-                          <button key={skill} className={`em-skill${eSkills.includes(skill) ? ' on' : ' off'}`}
-                            onClick={() => setESkills(prev => prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill])}>
-                            {skill}
+
+                      {/* Display Custom Skills */}
+                      {eSkills.some(s => !SKILLS.includes(s)) && (
+                        <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid #e2e8f0' }}>
+                          <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#d97706', marginBottom: 6 }}>Custom Skills:</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {eSkills.filter(s => !SKILLS.includes(s)).map(skill => (
+                              <button
+                                key={skill}
+                                onClick={() => setESkills(prev => prev.filter(s => s !== skill))}
+                                style={{
+                                  padding: '4px 10px',
+                                  borderRadius: 16,
+                                  background: '#f59e0b',
+                                  color: '#fff',
+                                  border: 'none',
+                                  fontSize: '0.68rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                                className="em-skill on"
+                                title="Click to remove"
+                              >
+                                {skill} ×
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Predefined Skills */}
+                      <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid #e2e8f0' }}>
+                        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', marginBottom: 6 }}>Predefined Skills:</div>
+                        <div className="em-skills-wrap" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                          {SKILLS.map(skill => (
+                            <button key={skill} className={`em-skill${eSkills.includes(skill) ? ' on' : ' off'}`}
+                              onClick={() => setESkills(prev => prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill])}>
+                              {skill}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Custom Skill Input */}
+                      <div style={{ marginBottom: 12 }}>
+                        <label style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>Add Custom Skill:</label>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <input
+                            type="text"
+                            value={customESkill}
+                            onChange={e => setCustomESkill(e.target.value)}
+                            onKeyPress={e => {
+                              if (e.key === 'Enter') {
+                                const trimmed = customESkill.trim()
+                                if (trimmed && !eSkills.includes(trimmed)) {
+                                  setESkills(prev => [...prev, trimmed])
+                                  setCustomESkill('')
+                                }
+                              }
+                            }}
+                            placeholder="e.g., Fresco Painting, Etching"
+                            style={{
+                              flex: 1,
+                              padding: '6px 10px',
+                              borderRadius: 8,
+                              border: '1px solid #cbd5e1',
+                              fontSize: '0.75rem',
+                              background: '#f8fafc'
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const trimmed = customESkill.trim()
+                              if (trimmed && !eSkills.includes(trimmed)) {
+                                setESkills(prev => [...prev, trimmed])
+                                setCustomESkill('')
+                              }
+                            }}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: 8,
+                              border: 'none',
+                              background: 'linear-gradient(135deg,#d97706,#ea580c)',
+                              color: '#fff',
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Add
                           </button>
-                        ))}
+                        </div>
                       </div>
 
                       <div className="em-section-lbl" style={{ marginTop: 8 }}>💰 Starting Price</div>
@@ -808,8 +957,8 @@ export default function MyArtistProfilePage() {
                         <div className="em-port-grid">
                           {ePortfolio.map((item, i) => (
                             <div key={item.id || i} className="em-port-tile">
-                              {item.imageUrl
-                                ? <img src={item.imageUrl} alt={item.title} />
+                              {item.image
+                                ? <img src={item.image} alt={item.title} />
                                 : <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg,#fef3c7,#fed7aa)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Image size={20} style={{ color: '#d97706' }} /></div>
                               }
                               <button className="em-port-del" onClick={() => setEPortfolio(prev => prev.filter((_, idx) => idx !== i))} title="Remove image">
@@ -899,7 +1048,7 @@ export default function MyArtistProfilePage() {
           <div className="map-profile-row">
             <div className="map-avatar">
               <div className="map-avatar-ring" /><div className="map-avatar-ring2" />
-              {artist.name.charAt(0).toUpperCase()}
+                  {(artist.name?.trim().charAt(0) || 'A').toUpperCase()}
             </div>
             <div style={{ flex: 1 }}>
               <div className="map-name">{artist.name}</div>
@@ -992,13 +1141,13 @@ export default function MyArtistProfilePage() {
             {artist.portfolio?.length > 0 ? (
               <div className="map-portfolio-grid">
                 {artist.portfolio.map((item, i) => (
-                  <div key={item.id||i} className="map-portfolio-tile" onClick={() => item.imageUrl && setLightbox(item.imageUrl)}>
-                    {item.imageUrl
-                      ? <><img src={item.imageUrl} alt={item.title||`Artwork ${i+1}`} /><div className="map-tile-overlay"><div><div style={{ color:'#fff', fontSize:'0.78rem', fontWeight:700 }}>{item.title}</div><div style={{ color:'rgba(255,255,255,0.65)', fontSize:'0.68rem' }}>{item.category}</div></div></div></>
-                      : <div style={{ width:'100%',height:'100%',background:'linear-gradient(135deg,#fef3c7,#fed7aa)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:6 }}><span style={{ fontSize:'2rem' }}>🎨</span><p style={{ fontSize:'0.72rem',fontWeight:700,color:'#92400e',textAlign:'center',padding:'0 8px' }}>{item.title}</p></div>
-                    }
-                  </div>
-                ))}
+                   <div key={item.id||i} className="map-portfolio-tile" onClick={() => item.image && setLightbox(item.image)}>
+                     {item.image
+                       ? <><img src={item.image} alt={item.title||`Artwork ${i+1}`} /><div className="map-tile-overlay"><div><div style={{ color:'#fff', fontSize:'0.78rem', fontWeight:700 }}>{item.title}</div><div style={{ color:'rgba(255,255,255,0.65)', fontSize:'0.68rem' }}>{item.category}</div></div></div></>
+                       : <div style={{ width:'100%',height:'100%',background:'linear-gradient(135deg,#fef3c7,#fed7aa)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:6 }}><span style={{ fontSize:'2rem' }}>🎨</span><p style={{ fontSize:'0.72rem',fontWeight:700,color:'#92400e',textAlign:'center',padding:'0 8px' }}>{item.title}</p></div>
+                     }
+                   </div>
+                 ))}
               </div>
             ) : (
               <div className="map-empty">

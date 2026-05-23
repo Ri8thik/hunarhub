@@ -262,8 +262,8 @@ export function EarningsPage() {
           <div className="ep-hero-pattern" />
           <div style={{ position: 'relative', zIndex: 1 }}>
             <div className="ep-hero-label">Total Earnings</div>
-            <div className="ep-hero-amount">₹{earnings.totalEarnings.toLocaleString('en-IN')}</div>
-            <div className="ep-hero-sub">{earnings.completedOrders} completed orders</div>
+            <div className="ep-hero-amount">₹{(earnings.totalEarnings || 0).toLocaleString('en-IN')}</div>
+            <div className="ep-hero-sub">{earnings.completedOrders || 0} completed orders</div>
             <div className="ep-hero-badge">
               <TrendingUp size={12} /> Artist Earnings Dashboard
             </div>
@@ -274,9 +274,9 @@ export function EarningsPage() {
         <div className="ep-stats-grid">
           {[
             { label: 'This Month', value: `₹${(earnings.thisMonth || 0).toLocaleString('en-IN')}`, emoji: '📅', bg: '#dbeafe', delay: '0s' },
-            { label: 'Pending Payout', value: `₹${earnings.pendingPayout.toLocaleString('en-IN')}`, emoji: '⏳', bg: '#fef3c7', delay: '0.06s' },
-            { label: 'Completed Orders', value: earnings.completedOrders, emoji: '✅', bg: '#d1fae5', delay: '0.12s' },
-            { label: 'Platform Fee', value: `₹${earnings.platformFee.toLocaleString('en-IN')}`, emoji: '🏛', bg: '#f3e8ff', delay: '0.18s' },
+            { label: 'Pending Payout', value: `₹${(earnings.pendingPayout || 0).toLocaleString('en-IN')}`, emoji: '⏳', bg: '#fef3c7', delay: '0.06s' },
+            { label: 'Completed Orders', value: earnings.completedOrders || 0, emoji: '✅', bg: '#d1fae5', delay: '0.12s' },
+            { label: 'Platform Fee', value: `₹${(earnings.platformFee || 0).toLocaleString('en-IN')}`, emoji: '🏛', bg: '#f3e8ff', delay: '0.18s' },
           ].map(stat => (
             <div key={stat.label} className="ep-stat-card" style={{ animationDelay: stat.delay }}>
               <div className="ep-stat-icon" style={{ background: stat.bg }}>
@@ -299,7 +299,7 @@ export function EarningsPage() {
             </div>
           </div>
           <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#b45309' }} className="dark:text-amber-400">
-            ₹{earnings.platformFee.toLocaleString('en-IN')}
+            ₹{(earnings.platformFee || 0).toLocaleString('en-IN')}
           </div>
         </div>
 

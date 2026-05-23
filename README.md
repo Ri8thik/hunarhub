@@ -88,19 +88,19 @@ hunarhub/
 │   │   ├── Avatar.tsx            # User avatar component
 │   │   ├── StarRating.tsx        # Star rating UI
 │   │   ├── StatusBadge.tsx       # Order status badge
-│   │   ├── ImageUploader.tsx     # Image upload with Firebase Storage
+│   │   ├── ImageUploader.tsx     # Image upload component
 │   │   └── SplashScreen.tsx      # App loading splash screen
 │   ├── context/
 │   │   └── AppContext.tsx        # Global state management
 │   ├── services/
-│   │   ├── authService.ts        # Firebase Auth helpers
-│   │   ├── firestoreService.ts   # Firestore CRUD operations
+│   │   ├── authService.ts        # Legacy auth adapter
+│   │   ├── firestoreService.ts   # API data adapter
 │   │   ├── imageService.ts       # Image upload service
 │   │   ├── locationService.ts    # Location utilities
 │   │   ├── sessionManager.ts     # Session persistence
 │   │   └── seedService.ts        # Database seeding for dev
 │   ├── config/
-│   │   └── firebase.ts           # Firebase configuration
+│   │   └── api.ts                # API endpoints/config
 │   ├── types/
 │   │   └── index.ts              # TypeScript type definitions
 │   └── utils/
@@ -121,7 +121,7 @@ hunarhub/
 ### Prerequisites
 - Node.js 18+
 - npm or yarn
-- A Firebase project
+- Backend API running (Spring Boot)
 
 ### 1. Clone the Repository
 
@@ -136,24 +136,12 @@ cd hunarhub
 npm install
 ```
 
-### 3. Configure Firebase
+### 3. Configure API Base URL
 
-Create a Firebase project at [https://console.firebase.google.com](https://console.firebase.google.com) and enable:
-- **Authentication** (Email/Password + Google)
-- **Firestore Database**
-- **Storage**
+Set API base URL in `.env`:
 
-Update `src/config/firebase.ts` with your Firebase config:
-
-```ts
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
+```bash
+VITE_API_BASE_URL=/api/v1
 ```
 
 ### 4. Run Locally
@@ -194,21 +182,31 @@ Want a real APK? Use [PWABuilder.com](https://www.pwabuilder.com) — see [STEP_
 
 ### GitHub Pages (Recommended)
 
-```bash
-npm run build
-# Deploy the dist/ folder to GitHub Pages
-```
+This repo includes a workflow at `.github/workflows/deploy-hunarhub-pages.yml`.
 
-The `homepage` field in `package.json` is already configured:
-```json
-"homepage": "https://Ri8thik.github.io/hunarhub"
+1. Push your changes to `main`
+2. In GitHub: **Settings -> Pages -> Source = GitHub Actions**
+3. In GitHub: **Settings -> Secrets and variables -> Actions -> Variables**, add:
+   - `VITE_API_BASE_URL` = `https://art-connect-c0ak.onrender.com/api/v1`
+   - `VITE_BASE_PATH` = `/hunarhub/` (or `/<your-repo-name>/`)
+4. Re-run the workflow (or push another commit)
+
+The app will be published to your GitHub Pages URL after the deploy job completes.
+
+For local production-like build checks:
+
+```bash
+cp .env.production.example .env.production
+npm ci
+npm run build
+npm run preview
 ```
 
 ---
 
 ## 🔒 Admin Access
 
-Navigate to `/admin` to access the admin login page. Admin credentials are managed separately in Firebase.
+Navigate to `/admin` to access the admin login page. Admin access is validated via backend roles.
 
 ---
 
@@ -230,7 +228,7 @@ This project is licensed under the MIT License.
 
 ## 🙏 Acknowledgements
 
-- [Firebase](https://firebase.google.com) — backend & auth
+- Spring Boot backend API — auth & data
 - [Tailwind CSS](https://tailwindcss.com) — styling
 - [Lucide React](https://lucide.dev) — icons
 - [Vite](https://vitejs.dev) — build tooling

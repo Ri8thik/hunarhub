@@ -80,22 +80,22 @@ export function ChatListPage() {
   }, [currentUserId]);
 
   return (
-    <div className="p-4 lg:p-8  mx-auto animate-fade-in">
+    <div className="p-4 lg:p-8 mx-auto animate-fade-in common-page-bg">
       <h1 className="text-xl lg:text-2xl font-bold text-stone-800 mb-4">Messages</h1>
 
       {loading ? (
-        <div className="flex items-center justify-center py-16">
+        <div className="common-loading-row">
           <Loader2 size={32} className="animate-spin text-amber-600" />
-          <span className="ml-3 text-stone-500">Loading messages...</span>
+          <span className="common-loading-text">Loading messages...</span>
         </div>
       ) : threads.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-2xl border border-stone-100">
+        <div className="text-center py-16 common-panel">
           <span className="text-5xl">💬</span>
           <h3 className="text-lg font-semibold text-stone-700 mt-4">No messages yet</h3>
           <p className="text-sm text-stone-400 mt-1">Start a conversation by requesting custom art from an artist!</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden divide-y divide-stone-100">
+        <div className="common-panel overflow-hidden divide-y divide-stone-100 dark:divide-gray-700">
           {threads.map(thread => (
             <button key={thread.id} onClick={() => navigate(`/chat/${thread.id}`)}
               className="w-full flex items-center gap-4 px-5 py-4 hover:bg-stone-50 transition-colors text-left">
@@ -234,7 +234,7 @@ export function ChatDetailPage() {
   };
 
   return (
-    <div className="flex flex-col h-full  mx-auto">
+    <div className="flex flex-col h-full mx-auto common-page-bg">
       {/* Header */}
       <div className="bg-white border-b border-stone-200 px-4 lg:px-6 py-3 flex items-center gap-3 shrink-0">
         <button onClick={() => navigate('/chat')} className="flex items-center gap-2 text-stone-500 hover:text-stone-700 transition-colors">

@@ -1,5 +1,5 @@
 // ============================================================
-// 🏗️ APP CONTEXT — State Management with Firebase + Firestore
+// 🏗️ APP CONTEXT — State Management with backend API + session storage
 // ============================================================
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
@@ -14,7 +14,6 @@ import {
   type SessionUserData,
 } from '@/services/sessionManager';
 import { logout as authLogout, onAuthChange } from '@/services/authService';
-import { isFirebaseConfigured, db } from '@/config/firebase';
 import {
   getArtists,
   getCategories,
@@ -30,8 +29,7 @@ import {
   createNotification,
   type CreateOrderData,
 } from '@/services/firestoreService';
-
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { getCurrentUser } from '@/services/apiDataService';
 
 interface AppState {
   isLoggedIn: boolean;
@@ -67,27 +65,8 @@ interface AppState {
 const AppContext = createContext<AppState | undefined>(undefined);
 
 async function ensureUserInFirestore(uid: string, email: string, name?: string) {
-  try {
-    const userRef = doc(db, 'users', uid)
-    const userSnap = await getDoc(userRef)
-
-    if (!userSnap.exists()) {
-      const displayName = name || email.split('@')[0] || 'User'
-      await setDoc(userRef, {
-        email: email,
-        name: displayName,
-        role: 'customer',
-        phone: '',
-        location: '',
-        createdAt: new Date().toISOString()
-      })
-      console.log('New user created in Firestore:', email)
-    } else {
-      console.log('User already exists in Firestore:', email)
-    }
-  } catch (err) {
-    console.error('Error ensuring user in Firestore:', err)
-  }
+  // Backend now owns the user profile lifecycle. Keep this as a no-op sync hook.
+  console.log('[AppContext] User sync:', uid, email, name || '');
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -138,12 +117,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const data = await getArtists();
       setArtists(data);
       // Update category counts based on fresh artist list
-      setCategories(prev =>
-        prev.map(cat => ({
-          ...cat,
-          count: data.filter(a => Array.isArray(a.skills) && a.skills.includes(cat.name)).length,
-        }))
-      );
+      // setCategories(prev =>
+      //   prev.map(cat => ({
+      //     ...cat,
+      //     count: data.filter(a => Array.isArray(a.skills) && a.skills.includes(cat.name)).length,
+      //   }))
+      // );
     } catch (error) {
       console.error('[AppContext] Error fetching artists:', error);
     } finally {
@@ -180,11 +159,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ---- Check if user has artist profile in Firestore DB ----
   const checkArtistStatusFromDB = useCallback(async (userId: string) => {
-    console.log('[AppContext] 🔍 Checking artist status from Firestore for:', userId);
+    console.log('[AppContext] 🔍 Checking artist status for:', userId);
     setArtistChecked(false);
     try {
       const result = await checkIsArtist(userId);
-      console.log('[AppContext] Artist status from DB:', result);
+      console.log('[AppContext] Artist status:', result);
       setIsArtist(result);
       
       // Save to sessionStorage for quick access on page refresh
@@ -209,31 +188,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setArtistsLoading(true);
     setCategoriesLoading(true);
 
-    // Subscribe to artists - updates ratings, review counts, etc. in real-time
+    // Poll artists through the API-backed adapter
     const unsubArtists = subscribeToArtists((data) => {
       setArtists(data);
       // Recompute category counts live from fresh artist data
-      setCategories(prev =>
-        prev.map(cat => ({
-          ...cat,
-          count: data.filter(a => Array.isArray(a.skills) && a.skills.includes(cat.name)).length,
-        }))
-      );
+      // setCategories(prev =>
+      //   prev.map(cat => ({
+      //     ...cat,
+      //     count: data.filter(a => Array.isArray(a.skills) && a.skills.includes(cat.name)).length,
+      //   }))
+      // );
       setArtistsLoading(false);
     });
 
-    // Subscribe to categories
+    // Poll categories through the API-backed adapter
     const unsubCategories = subscribeToCategories((data) => {
       // Merge with current artist state for correct counts
-      setArtists(currentArtists => {
-        setCategories(
-          data.map(cat => ({
-            ...cat,
-            count: currentArtists.filter(a => Array.isArray(a.skills) && a.skills.includes(cat.name)).length,
-          }))
-        );
-        return currentArtists;
-      });
+      // setArtists(currentArtists => {
+      //   setCategories(
+      //     data.map(cat => ({
+      //       ...cat,
+      //       count: currentArtists.filter(a => Array.isArray(a.skills) && a.skills.includes(cat.name)).length,
+      //     }))
+      //   );
+      //   return currentArtists;
+      // });
+      setCategories(data);
       setCategoriesLoading(false);
     });
 
@@ -248,26 +228,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function checkSession() {
       try {
-        if (isSessionValid()) {
+        const restored = await restoreSession();
+        if (restored) {
           const userData = getUserData();
           const role = getUserRole();
           
           if (userData && role) {
+            await Promise.all([fetchArtists(), fetchCategories()]);
             setIsLoggedIn(true);
             setUserRole(role);
             setCurrentUserId(userData.uid);
             setCurrentUserName(userData.displayName || 'User');
             setCurrentUserEmail(userData.email || '');
             setSessionData(userData);
-            
-            await restoreSession();
-            // Ensure user exists in Firestore DB
+
+            // Ensure the backend knows about the current user session
             await ensureUserInFirestore(userData.uid, userData.email || '', userData.displayName || 'User');
             fetchUserPhone(userData.uid);
             fetchOrders(userData.uid, role);
-            // Check artist status from Firestore DB
+            // Check artist status from backend
             await checkArtistStatusFromDB(userData.uid);
           }
+        } else {
+          setIsLoggedIn(false);
+          setSessionData(null);
         }
       } catch (error) {
         console.error('[AppContext] Session restore error:', error);
@@ -277,12 +261,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     
     checkSession();
-  }, [fetchOrders, checkArtistStatusFromDB]);
+  }, [fetchArtists, fetchCategories, fetchOrders, checkArtistStatusFromDB]);
 
-  // ---- Listen for Firebase Auth State Changes ----
+  // ---- Listen for auth state changes ----
   useEffect(() => {
-    if (!isFirebaseConfigured()) return;
-
     const unsubscribe = onAuthChange((user) => {
       if (user) {
         const role = getUserRole() || 'customer';
@@ -292,12 +274,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setCurrentUserEmail(user.email || '');
         setUserRole(role);
         
-        // Ensure user exists in Firestore DB
+        // Ensure user is synced with the backend
         ensureUserInFirestore(user.uid, user.email || '', user.displayName || 'User');
         fetchUserPhone(user.uid);
         fetchOrders(user.uid, role);
-        
-        // Check artist status from Firestore DB on auth change
+
+        // Check artist status on auth change
         checkArtistStatusFromDB(user.uid);
       } else if (!isSessionValid()) {
         setIsLoggedIn(false);
@@ -347,16 +329,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('session-expired', handleSessionExpired);
   }, []);
 
-  // ---- Fetch phone from Firestore DB ----
-  const fetchUserPhone = useCallback(async (uid: string) => {
-    if (!isFirebaseConfigured()) return;
+  // ---- Fetch phone from backend ----
+  const fetchUserPhone = useCallback(async (_uid: string) => {
+    void _uid;
     try {
-      const userSnap = await getDoc(doc(db, 'users', uid));
-      if (userSnap.exists()) {
-        setCurrentUserPhone(userSnap.data().phone || '');
+      const user = await getCurrentUser();
+      if (user && typeof user === 'object') {
+        const phone = (user as { phone?: string; phoneNumber?: string }).phone || (user as { phone?: string; phoneNumber?: string }).phoneNumber || '';
+        setCurrentUserPhone(phone);
+        return;
       }
+      setCurrentUserPhone('');
     } catch (err) {
       console.error('[AppContext] Error fetching user phone:', err);
+      setCurrentUserPhone('');
     }
   }, []);
 
@@ -368,6 +354,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const userData = getUserData();
     
     if (userData) {
+      void fetchArtists();
+      void fetchCategories();
       setCurrentUserId(userData.uid);
       setCurrentUserName(userData.displayName || 'User');
       setCurrentUserEmail(userData.email || '');
@@ -387,7 +375,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setCurrentUserName(name);
       fetchOrders(id, role);
     }
-  }, [fetchOrders, checkArtistStatusFromDB, fetchUserPhone]);
+  }, [fetchArtists, fetchCategories, fetchOrders, checkArtistStatusFromDB, fetchUserPhone]);
 
 
 
@@ -523,8 +511,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [currentUserId, userRole, fetchOrders]);
 
   const refreshArtists = useCallback(async () => {
-    // Artists are kept in sync via real-time onSnapshot listener — no manual refresh needed
-  }, []);
+    await Promise.all([fetchArtists(), fetchCategories()]);
+  }, [fetchArtists, fetchCategories]);
 
   const markAllRead = useCallback(async () => {
     if (!currentUserId) return;

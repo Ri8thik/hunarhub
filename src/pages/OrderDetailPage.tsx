@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageSquare, Calendar, IndianRupee, Clock, CheckCircle2, XCircle, Truck, Package, Loader2, Send } from 'lucide-react';
+import { ArrowLeft, Calendar, IndianRupee, Clock, CheckCircle2, XCircle, Truck, Package, Loader2, Send } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { StatusBadge } from '@/components/StatusBadge';
 import { StarRating } from '@/components/StarRating';
@@ -86,6 +86,7 @@ export function OrderDetailPage() {
     try {
       // 1. Save the review document
       await addReview({
+        orderId: order.id,
         artistId: order.artistId,
         customerId: currentUserId,
         customerName: currentUserName || 'Customer',
@@ -110,7 +111,7 @@ export function OrderDetailPage() {
 
   if (ordersLoading || fetching) {
     return (
-      <div className="flex items-center justify-center h-64 bg-gray-50 dark:bg-gray-950">
+      <div className="flex items-center justify-center h-64 common-page-bg">
         <div className="text-center">
           <Loader2 className="w-10 h-10 animate-spin text-amber-600 mx-auto mb-3" />
           <p className="text-stone-500 dark:text-gray-400 text-sm">Loading order details...</p>
@@ -121,7 +122,7 @@ export function OrderDetailPage() {
 
   if (!order || fetchFailed) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 bg-gray-50 dark:bg-gray-950 gap-4">
+      <div className="flex flex-col items-center justify-center h-64 common-page-bg gap-4">
         <span className="text-4xl">📋</span>
         <p className="text-stone-500 dark:text-gray-400 font-medium">Order not found</p>
         <button onClick={() => navigate('/orders')}
@@ -150,7 +151,7 @@ export function OrderDetailPage() {
   const nextAction = getNextAction();
 
   return (
-    <div className="p-4 lg:p-8 mx-auto animate-fade-in bg-gray-50 dark:bg-gray-950 min-h-full">
+    <div className="p-4 lg:p-8 mx-auto animate-fade-in common-page-bg">
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
@@ -173,7 +174,7 @@ export function OrderDetailPage() {
 
           {/* Progress Tracker */}
           {order.status !== 'rejected' && (
-            <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-stone-100 dark:border-gray-700">
+            <div className="common-panel p-6">
               <h3 className="font-semibold text-stone-800 dark:text-gray-100 mb-4">Order Progress</h3>
               <div className="flex items-center justify-between relative">
                 <div className="absolute top-4 left-0 right-0 h-0.5 bg-stone-200 dark:bg-gray-700" />
@@ -212,7 +213,7 @@ export function OrderDetailPage() {
           )}
 
           {/* Order Details */}
-          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-stone-100 dark:border-gray-700">
+          <div className="common-panel p-6">
             <h3 className="font-semibold text-stone-800 dark:text-gray-100 mb-3">Order Details</h3>
             <p className="text-sm text-stone-600 dark:text-gray-400 leading-relaxed mb-4">{order.description}</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -237,7 +238,7 @@ export function OrderDetailPage() {
 
           {/* Reference Images */}
           {order.referenceImages && order.referenceImages.length > 0 && (
-            <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-stone-100 dark:border-gray-700">
+            <div className="common-panel p-6">
               <h3 className="font-semibold text-stone-800 dark:text-gray-100 mb-3">Reference Images</h3>
               <div className="grid grid-cols-3 gap-3">
                 {order.referenceImages.map((img, i) => (
@@ -250,7 +251,7 @@ export function OrderDetailPage() {
 
           {/* ── Review Form ── */}
           {showReview && !reviewSubmitted && (
-            <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-stone-100 dark:border-gray-700 animate-fade-in-up">
+            <div className="common-panel p-6 animate-fade-in-up">
               <h3 className="font-semibold text-stone-800 dark:text-gray-100 mb-1">⭐ Rate Your Experience</h3>
               <p className="text-xs text-stone-400 dark:text-gray-500 mb-4">Your review helps others find great artists</p>
 
@@ -303,7 +304,7 @@ export function OrderDetailPage() {
         <div className="space-y-4">
 
           {/* Contact Card */}
-          <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm border border-stone-100 dark:border-gray-700">
+          <div className="common-panel p-5">
             <p className="text-xs text-stone-400 dark:text-gray-500 mb-2">{userRole === 'customer' ? 'Artist' : 'Customer'}</p>
             <div className="flex items-center gap-3 mb-3">
               <Avatar name={userRole === 'customer' ? (order.artistName || 'Artist') : (order.customerName || 'Customer')} size="lg" />

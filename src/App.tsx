@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from '@/context/AppContext';
 import { Sidebar } from '@/components/Sidebar';
 import { TopNav } from '@/components/TopNav';
-import { MobileNav } from '@/components/MobileNav';
+import { BottomNav } from '@/components/BottomNav';
 import { LoginPage } from '@/pages/LoginPage';
 import { HomePage } from '@/pages/HomePage';
 import { ExplorePage } from '@/pages/ExplorePage';
@@ -17,9 +16,20 @@ import { EarningsPage } from '@/pages/EarningsPage';
 import { NotificationsPage } from '@/pages/NotificationsPage';
 import ArtistSetupPage from '@/pages/ArtistSetupPage';
 import MyArtistProfilePage from '@/pages/MyArtistProfilePage';
-import { Palette, Loader2 } from 'lucide-react';
-import AdminLoginPage from '@/pages/AdminLoginPage'
-import AdminDashboardPage from '@/pages/AdminDashboardPage'
+import { Loader2 } from 'lucide-react';
+
+// Admin pages (new)
+import AdminLoginPage from '@/pages/admin/AdminLoginPage';
+import AdminDashboardPage from '@/pages/admin/AdminDashboardPage';
+import AdminUsersPage from '@/pages/admin/AdminUsersPage';
+import AdminArtistsPage from '@/pages/admin/AdminArtistsPage';
+import AdminOrdersPage from '@/pages/admin/AdminOrdersPage';
+import AdminReviewsPage from '@/pages/admin/AdminReviewsPage';
+import AdminPayoutsPage from '@/pages/admin/AdminPayoutsPage';
+import AdminNotificationsPage from '@/pages/admin/AdminNotificationsPage';
+import AdminAnalyticsPage from '@/pages/admin/AdminAnalyticsPage';
+import AdminAuditLogPage from '@/pages/admin/AdminAuditLogPage';
+import AdminSettingsPage from '@/pages/admin/AdminSettingsPage';
 
 function LoadingScreen() {
   return (
@@ -42,12 +52,21 @@ function AppLayout() {
 
   // Admin routes are always standalone — never wrapped in user layout
   const pathname = window.location.pathname
-  const isAdminRoute = pathname.includes('/admin')
+  const isAdminRoute = pathname.startsWith('/admin')
   if (isAdminRoute) {
     return (
       <Routes>
         <Route path="/admin" element={<AdminLoginPage />} />
         <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+        <Route path="/admin/users" element={<AdminUsersPage />} />
+        <Route path="/admin/artists" element={<AdminArtistsPage />} />
+        <Route path="/admin/orders" element={<AdminOrdersPage />} />
+        <Route path="/admin/reviews" element={<AdminReviewsPage />} />
+        <Route path="/admin/payouts" element={<AdminPayoutsPage />} />
+        <Route path="/admin/notifications" element={<AdminNotificationsPage />} />
+        <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
+        <Route path="/admin/audit-log" element={<AdminAuditLogPage />} />
+        <Route path="/admin/settings" element={<AdminSettingsPage />} />
         <Route path="*" element={<AdminLoginPage />} />
       </Routes>
     )
@@ -64,11 +83,11 @@ function AppLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex">
+    <div className="min-h-screen common-page-bg flex">
       <Sidebar />
-      <div className="flex-1 flex flex-col h-screen overflow-hidden md:ml-0">
+      <div className="flex-1 flex flex-col min-h-screen">
         <TopNav />
-        <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
+        <main className="flex-1 overflow-y-auto common-page-bg">
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/home" element={<HomePage />} />
@@ -89,15 +108,18 @@ function AppLayout() {
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>
-        <MobileNav />
+        <BottomNav />
       </div>
     </div>
-  )
+  );
 }
 
 export function App() {
+  const basePath = import.meta.env.VITE_BASE_PATH || '/'
+  const normalizedBasePath = basePath === '/' ? '/' : basePath.replace(/\/$/, '')
+
   return (
-    <BrowserRouter basename={import.meta.env.DEV ? '/' : '/hunarhub'}>
+    <BrowserRouter basename={import.meta.env.DEV ? '/' : normalizedBasePath}>
       <AppProvider>
         <AppLayout />
       </AppProvider>

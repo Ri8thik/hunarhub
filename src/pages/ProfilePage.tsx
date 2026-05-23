@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
 import { getArtistById } from '@/services/firestoreService';
+import { getCurrentUser, updateUserProfile, updateArtistProfile } from '@/services/apiDataService';
 import { getIndianStates, getCitiesByState } from '@/services/locationService';
 import {
   User, LogOut, Bell, Moon, Palette, Star, MapPin,
@@ -681,19 +680,19 @@ export default function ProfilePage() {
     setEditBio(''); setEditSkills([]); setEditPriceMin(''); setEditAvailability('available');
     try {
       if (currentUserId) {
-        const userDoc = await getDoc(doc(db, 'users', currentUserId));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
+        const data: any = await getCurrentUser();
+        if (data) {
           setEditName(data.name || currentUserName || '');
           setEditPhone(data.phone || '');
-          if (data.location) {
-            const parts = data.location.split(', ');
-            if (parts.length === 2) {
-              setEditSelectedCity(parts[0]); setEditSelectedState(parts[1]);
-              setEditCitySearch(parts[0]);
-              const cities = await getCitiesByState(parts[1]);
+          const city = data.locationCity || '';
+          const state = data.locationState || '';
+          if (city || state) {
+            if (city && state) {
+              setEditSelectedCity(city); setEditSelectedState(state);
+              setEditCitySearch(city);
+              const cities = await getCitiesByState(state);
               setEditCities(cities);
-            } else { setEditSelectedState(data.location); }
+            } else { setEditSelectedState(state || city); }
           }
         }
         if (isArtist) {
@@ -726,20 +725,21 @@ export default function ProfilePage() {
     if (!currentUserId) return;
     setEditLoading(true);
     try {
-      const location = editSelectedCity && editSelectedState
-        ? `${editSelectedCity}, ${editSelectedState}`
-        : editSelectedState || '';
-      await updateDoc(doc(db, 'users', currentUserId), {
-        name: editName.trim(), phone: editPhone.trim(),
-        location, updatedAt: new Date().toISOString()
+      await updateUserProfile({
+        displayName: editName.trim(),
+        phone: editPhone.trim(),
+        locationCity: editSelectedCity || null,
+        locationState: editSelectedState || null,
       });
       if (isArtist) {
         try {
-          await updateDoc(doc(db, 'artists', currentUserId), {
-            name: editName.trim(), location, bio: editBio.trim(),
+          await updateArtistProfile({
+            bio: editBio.trim(),
             skills: editSkills,
-            priceRange: { min: parseInt(editPriceMin) || 500, max: (parseInt(editPriceMin) || 500) * 5 },
-            availability: editAvailability, updatedAt: new Date().toISOString()
+            categories: editSkills.slice(0, 5),
+            startingPrice: parseInt(editPriceMin) || 500,
+            pricingCurrency: 'INR',
+            pricingNotes: `Availability: ${editAvailability}`,
           });
         } catch (err) { console.error('Error updating artist profile:', err); }
       }

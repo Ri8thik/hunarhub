@@ -3,14 +3,6 @@ name: Deploy HunarHub Frontend to GitHub Pages
 on:
   push:
     branches: ["main"]
-    paths:
-      - "src/**"
-      - "public/**"
-      - "index.html"
-      - "package.json"
-      - "package-lock.json"
-      - "vite.config.ts"
-      - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
 permissions:
@@ -35,6 +27,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v6
 
       - name: Setup Node
         uses: actions/setup-node@v6
